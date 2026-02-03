@@ -259,49 +259,8 @@ export default function QuestionnaireForm({
                     <p style={{ marginBottom: '0.5rem', fontWeight: 500, color: '#856404', fontSize: '1rem' }}>
                       ⚠️ Данные пользователя не загружены
                     </p>
-                    <p style={{ fontSize: '0.9rem', color: '#856404', marginBottom: '1rem' }}>
+                    <p style={{ fontSize: '0.9rem', color: '#856404', marginBottom: '1.5rem' }}>
                       Для автоматической авторизации откройте этот сайт из Telegram через бота или меню-кнопку.
-                    </p>
-                    <a
-                      href={`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="button"
-                      style={{ 
-                        display: 'inline-block', 
-                        marginBottom: '1rem',
-                        textDecoration: 'none',
-                        width: '100%'
-                      }}
-                    >
-                      🔵 Войти через Telegram
-                    </a>
-                    <p style={{ fontSize: '0.9rem', color: '#856404', fontWeight: 500, marginBottom: '1rem' }}>
-                      Или используйте кнопку ниже для авторизации через Telegram Login Widget.
-                    </p>
-                    <div style={{ marginTop: '1rem' }}>
-                      <TelegramLogin
-                        botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'}
-                        onAuth={handleTelegramAuth}
-                        buttonSize="large"
-                        cornerRadius={4}
-                        requestAccess={false}
-                        usePic={true}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ 
-                    padding: '1.5rem', 
-                    background: '#f8f9fa', 
-                    borderRadius: '8px',
-                    border: '1px solid #dee2e6'
-                  }}>
-                    <p style={{ marginBottom: '1rem', color: '#333', fontSize: '1rem', textAlign: 'center' }}>
-                      <strong>Для отправки анкеты необходимо авторизоваться через Telegram</strong>
-                    </p>
-                    <p style={{ marginBottom: '1.5rem', fontSize: '0.9rem', color: '#666', textAlign: 'center' }}>
-                      Нажмите кнопку ниже, чтобы войти через Telegram. Ваши данные из Telegram будут использованы для связи с вами.
                     </p>
                     <a
                       href={`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'}`}
@@ -318,25 +277,65 @@ export default function QuestionnaireForm({
                     >
                       🔵 Войти через Telegram
                     </a>
-                    <p style={{ fontSize: '0.85rem', color: '#999', textAlign: 'center', fontStyle: 'italic', marginBottom: '1rem' }}>
-                      💡 Или используйте виджет ниже для авторизации через браузер
+                    <p style={{ fontSize: '0.85rem', color: '#856404', marginTop: '1rem', textAlign: 'center' }}>
+                      Или используйте форму ниже для ввода данных вручную
                     </p>
-                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-                      <TelegramLogin
-                        botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'}
-                        onAuth={handleTelegramAuth}
-                        buttonSize="large"
-                        cornerRadius={4}
-                        requestAccess={false}
-                        usePic={true}
-                      />
+                    <button
+                      className="button button-secondary"
+                      onClick={() => setUseSimpleAuth(true)}
+                      style={{ width: '100%', marginTop: '0.5rem' }}
+                    >
+                      Ввести данные вручную
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ 
+                    padding: '1.5rem', 
+                    background: '#f8f9fa', 
+                    borderRadius: '8px',
+                    border: '1px solid #dee2e6'
+                  }}>
+                    <p style={{ marginBottom: '1rem', color: '#333', fontSize: '1rem', textAlign: 'center' }}>
+                      <strong>Для отправки анкеты необходимо авторизоваться через Telegram</strong>
+                    </p>
+                    <p style={{ marginBottom: '1.5rem', fontSize: '0.9rem', color: '#666', textAlign: 'center' }}>
+                      Для автоматической авторизации откройте этот сайт из Telegram через бота. Ваши данные из Telegram будут использованы для связи с вами.
+                    </p>
+                    <a
+                      href={`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="button"
+                      style={{ 
+                        display: 'block', 
+                        marginBottom: '1.5rem',
+                        textDecoration: 'none',
+                        textAlign: 'center',
+                        width: '100%'
+                      }}
+                    >
+                      🔵 Войти через Telegram
+                    </a>
+                    <div style={{ 
+                      padding: '1rem', 
+                      background: '#e7f3ff', 
+                      borderRadius: '8px',
+                      border: '1px solid #0088cc',
+                      marginBottom: '1rem'
+                    }}>
+                      <p style={{ fontSize: '0.9rem', color: '#004085', textAlign: 'center', margin: 0 }}>
+                        💡 <strong>Рекомендуется:</strong> Откройте бота в Telegram и используйте меню-кнопку для автоматической авторизации
+                      </p>
                     </div>
+                    <p style={{ fontSize: '0.85rem', color: '#666', textAlign: 'center', marginBottom: '1rem' }}>
+                      Или введите данные вручную:
+                    </p>
                     <button
                       className="button button-secondary"
                       onClick={() => setUseSimpleAuth(true)}
                       style={{ width: '100%' }}
                     >
-                      Или введите данные вручную
+                      Ввести данные вручную
                     </button>
                   </div>
                 )}
