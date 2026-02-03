@@ -116,59 +116,100 @@ export async function POST(request: NextRequest) {
         `🆔 ID: ${body.telegram.id}\n` +
         `🔗 Ссылка: ${body.telegram.username ? `https://t.me/${body.telegram.username}` : 'недоступна'}`
 
-      // Функция для отправки сообщения с обработкой ошибок
-      const sendTelegramMessage = async (chatId: string | number, text: string, description: string) => {
-        try {
-          const response = await fetch(telegramApiUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text: text,
-            }),
-          })
-
-          const result = await response.json()
-          
-          if (!response.ok || !result.ok) {
-            console.error(`❌ Failed to send message to ${description} (${chatId}):`, result.description || result.error_code || result)
-            return { success: false, error: result.description || result.error_code || 'Unknown error' }
-          }
-          
-          console.log(`✅ Message sent to ${description} (${chatId}) successfully`)
-          return { success: true }
-        } catch (error) {
-          console.error(`❌ Error sending message to ${description} (${chatId}):`, error)
-          return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
-        }
-      }
-
-      // Отправляем в группу (обязательно)
+      // Отправляем в группу напрямую через Telegram API
       const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID || '-5074397630'
-      const groupResult = await sendTelegramMessage(groupChatId, adminMessage, 'group')
       
-      if (!groupResult.success) {
-        console.error('⚠️ Failed to send message to group, but continuing...')
-        // Не прерываем выполнение, но логируем ошибку
+      try {
+        const groupResponse = await fetch(telegramApiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            chat_id: groupChatId,
+            text: adminMessage,
+          }),
+        })
+
+        const groupResult = await groupResponse.json()
+        
+        if (!groupResponse.ok || !groupResult.ok) {
+          console.error('❌ Ошибка отправки в группу:', {
+            chatId: groupChatId,
+            error: groupResult.description || groupResult.error_code,
+            fullResponse: groupResult
+          })
+          // Возвращаем ошибку, чтобы пользователь знал
+          return NextResponse.json(
+            { 
+              error: `Не удалось отправить сообщение в группу: ${groupResult.description || 'Неизвестная ошибка'}`,
+              details: groupResult
+            },
+            { status: 500 }
+          )
+        }
+        
+        console.log('✅ Сообщение успешно отправлено в группу:', groupChatId)
+      } catch (error) {
+        console.error('❌ Ошибка при отправке в группу:', error)
+        return NextResponse.json(
+          { error: 'Ошибка при отправке сообщения в группу' },
+          { status: 500 }
+        )
       }
 
-      // Отправляем пользователю (только если это реальный Telegram ID, не временный)
-      // Проверяем, что ID не является временным (Date.now() создает очень большие числа)
-      const isRealTelegramId = body.telegram.id < 2147483647 // Максимальный реальный Telegram ID
+      // Отправляем пользователю (только если это реальный Telegram ID)
+      const isRealTelegramId = body.telegram.id < 2147483647
       if (isRealTelegramId && body.telegram.id) {
         const userMessage = `✅ Спасибо за авторизацию!\n\n` +
           `Ваши данные успешно получены.\n` +
           `Анкета: ${body.questionnaireType}\n` +
           `${body.telegram.username ? `Ваш Telegram: @${body.telegram.username}` : ''}`
         
-        await sendTelegramMessage(body.telegram.id, userMessage, 'user')
+        try {
+          const userResponse = await fetch(telegramApiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              chat_id: body.telegram.id,
+              text: userMessage,
+            }),
+          })
+          
+          const userResult = await userResponse.json()
+          if (userResult.ok) {
+            console.log('✅ Сообщение отправлено пользователю')
+          } else {
+            console.warn('⚠️ Не удалось отправить сообщение пользователю:', userResult.description)
+          }
+        } catch (error) {
+          console.warn('⚠️ Ошибка при отправке пользователю:', error)
+        }
       }
 
       // Отправляем администратору (если указан)
       if (process.env.TELEGRAM_ADMIN_CHAT_ID) {
-        await sendTelegramMessage(process.env.TELEGRAM_ADMIN_CHAT_ID, adminMessage, 'admin')
+        try {
+          const adminResponse = await fetch(telegramApiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              chat_id: process.env.TELEGRAM_ADMIN_CHAT_ID,
+              text: adminMessage,
+            }),
+          })
+          
+          const adminResult = await adminResponse.json()
+          if (adminResult.ok) {
+            console.log('✅ Сообщение отправлено администратору')
+          }
+        } catch (error) {
+          console.warn('⚠️ Ошибка при отправке администратору:', error)
+        }
       }
     } else {
       console.error('⚠️ TELEGRAM_BOT_TOKEN not set, cannot send messages')
