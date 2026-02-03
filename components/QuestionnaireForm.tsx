@@ -336,24 +336,22 @@ export default function QuestionnaireForm({
           {/* Блок авторизации через Telegram */}
           <div className="form-group" style={{ marginTop: '3rem', paddingTop: '2rem', borderTop: '1px solid #e0e0e0' }}>
             <h2>Авторизация через Telegram</h2>
-            <p style={{ marginBottom: '1rem', color: '#666' }}>
-              Для отправки анкеты необходимо авторизоваться через Telegram. Ваши данные из Telegram будут использованы для связи с вами.
-            </p>
             
             {telegramUser ? (
-              <div style={{ padding: '1rem', background: '#e7f3ff', borderRadius: '4px' }}>
-                <p style={{ marginBottom: '0.5rem' }}>
+              <div style={{ padding: '1.5rem', background: '#e7f3ff', borderRadius: '8px', border: '1px solid #0088cc' }}>
+                <p style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}>
                   <strong>✅ Авторизован:</strong> {telegramUser.first_name}
                   {telegramUser.last_name && ` ${telegramUser.last_name}`}
                 </p>
                 {telegramUser.username && (
-                  <p>
+                  <p style={{ marginBottom: '0.5rem' }}>
                     <strong>Telegram:</strong>{' '}
                     <a
                       href={`https://t.me/${telegramUser.username}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="telegram-link"
+                      style={{ fontSize: '1rem' }}
                     >
                       @{telegramUser.username}
                     </a>
@@ -367,33 +365,59 @@ export default function QuestionnaireForm({
               <div>
                 {typeof window !== 'undefined' && window.Telegram?.WebApp ? (
                   <div style={{ 
-                    padding: '1rem', 
+                    padding: '1.5rem', 
                     background: '#fff3cd', 
                     borderRadius: '8px',
                     border: '1px solid #ffc107',
                     textAlign: 'center'
                   }}>
-                    <p style={{ marginBottom: '0.5rem', fontWeight: 500, color: '#856404' }}>
+                    <p style={{ marginBottom: '0.5rem', fontWeight: 500, color: '#856404', fontSize: '1rem' }}>
                       ⚠️ Данные пользователя не загружены
                     </p>
-                    <p style={{ fontSize: '0.9rem', color: '#856404' }}>
+                    <p style={{ fontSize: '0.9rem', color: '#856404', marginBottom: '1rem' }}>
                       Для автоматической авторизации откройте этот сайт из Telegram через бота или меню-кнопку.
                     </p>
+                    <p style={{ fontSize: '0.9rem', color: '#856404', fontWeight: 500 }}>
+                      Или используйте кнопку ниже для авторизации через Telegram Login Widget.
+                    </p>
+                    <div style={{ marginTop: '1rem' }}>
+                      <TelegramLogin
+                        botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'}
+                        onAuth={handleTelegramAuth}
+                        buttonSize="large"
+                        cornerRadius={4}
+                        requestAccess={false}
+                        usePic={true}
+                      />
+                    </div>
                   </div>
                 ) : (
-                  <>
-                    <TelegramLogin
-                      botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'}
-                      onAuth={handleTelegramAuth}
-                      buttonSize="large"
-                      cornerRadius={4}
-                      requestAccess={false}
-                      usePic={true}
-                    />
-                    <p style={{ marginTop: '1rem', fontSize: '0.9rem', color: '#666', textAlign: 'center' }}>
-                      Нажмите кнопку выше, чтобы войти через Telegram
+                  <div style={{ 
+                    padding: '1.5rem', 
+                    background: '#f8f9fa', 
+                    borderRadius: '8px',
+                    border: '1px solid #dee2e6'
+                  }}>
+                    <p style={{ marginBottom: '1rem', color: '#333', fontSize: '1rem', textAlign: 'center' }}>
+                      <strong>Для отправки анкеты необходимо авторизоваться через Telegram</strong>
                     </p>
-                  </>
+                    <p style={{ marginBottom: '1.5rem', fontSize: '0.9rem', color: '#666', textAlign: 'center' }}>
+                      Нажмите кнопку ниже, чтобы войти через Telegram. Ваши данные из Telegram будут использованы для связи с вами.
+                    </p>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+                      <TelegramLogin
+                        botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'}
+                        onAuth={handleTelegramAuth}
+                        buttonSize="large"
+                        cornerRadius={4}
+                        requestAccess={false}
+                        usePic={true}
+                      />
+                    </div>
+                    <p style={{ fontSize: '0.85rem', color: '#999', textAlign: 'center', fontStyle: 'italic' }}>
+                      💡 Совет: Для автоматической авторизации откройте этот сайт из Telegram через бота
+                    </p>
+                  </div>
                 )}
               </div>
             )}
