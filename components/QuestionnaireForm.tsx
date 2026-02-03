@@ -147,16 +147,16 @@ export default function QuestionnaireForm({
         },
         body: JSON.stringify({
           questionnaireType,
-          answers,
+          answers: answers || {},
           telegram: {
             id: telegramUser.id,
             username: telegramUser.username,
             first_name: telegramUser.first_name,
             last_name: telegramUser.last_name,
             photo_url: telegramUser.photo_url,
-            auth_date: telegramUser.auth_date,
-            hash: telegramUser.hash,
-            initData: telegramUser.initData, // Отправляем оригинальную строку initData для Web App
+            auth_date: telegramUser.auth_date || Math.floor(Date.now() / 1000),
+            hash: telegramUser.hash || '',
+            initData: telegramUser.initData || '',
           },
         }),
       })
