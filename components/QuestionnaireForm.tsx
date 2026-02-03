@@ -17,7 +17,6 @@ export default function QuestionnaireForm({
   const [telegramUser, setTelegramUser] = useState<TelegramUser | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [useSimpleForm, setUseSimpleForm] = useState(false)
   const [simpleFormData, setSimpleFormData] = useState({
     username: '',
     first_name: '',
@@ -140,8 +139,12 @@ export default function QuestionnaireForm({
                 </p>
               )}
             </div>
-          ) : useSimpleForm ? (
+          ) : (
             <form onSubmit={handleSimpleFormSubmit}>
+              <p style={{ marginBottom: '1rem', color: '#666' }}>
+                Заполните форму, чтобы отправить ваши данные. Мы свяжемся с вами в Telegram.
+              </p>
+              
               <div style={{ marginBottom: '1rem' }}>
                 <label htmlFor="first_name" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
                   Ваше имя <span style={{ color: 'red' }}>*</span>
@@ -182,58 +185,33 @@ export default function QuestionnaireForm({
                   placeholder="username (без @)"
                 />
                 <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#666' }}>
-                  Введите ваш Telegram username без символа @
+                  Введите ваш Telegram username без символа @. Например: если ваш username @ivanov, введите: ivanov
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button
-                  type="submit"
-                  className="button"
-                  disabled={isSubmitting}
-                  style={{ flex: 1 }}
-                >
-                  {isSubmitting ? 'Отправка...' : 'Отправить данные'}
-                </button>
-                <button
-                  type="button"
-                  className="button button-secondary"
-                  onClick={() => setUseSimpleForm(false)}
-                  disabled={isSubmitting}
-                >
-                  Назад
-                </button>
+              <button
+                type="submit"
+                className="button"
+                disabled={isSubmitting}
+                style={{ width: '100%' }}
+              >
+                {isSubmitting ? 'Отправка...' : 'Отправить данные'}
+              </button>
+              
+              {/* Автоматическая авторизация через Web App (если открыто из Telegram) */}
+              <div style={{ marginTop: '1.5rem' }}>
+                <TelegramLogin
+                  botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'}
+                  onAuth={handleTelegramAuth}
+                  buttonSize="large"
+                  cornerRadius={4}
+                  requestAccess={false}
+                  usePic={true}
+                />
+                <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#999', textAlign: 'center' }}>
+                  Если вы открыли сайт из Telegram, авторизация произойдет автоматически
+                </p>
               </div>
             </form>
-          ) : (
-            <div>
-              <p style={{ marginBottom: '1rem', color: '#666' }}>
-                Выберите способ авторизации:
-              </p>
-              
-              {/* Пытаемся использовать Web App автоматически */}
-              <TelegramLogin
-                botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'}
-                onAuth={handleTelegramAuth}
-                buttonSize="large"
-                cornerRadius={4}
-                requestAccess={false}
-                usePic={true}
-              />
-              
-              <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f8f9fa', borderRadius: '4px', textAlign: 'center' }}>
-                <p style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: '#666' }}>
-                  Или используйте простую форму:
-                </p>
-                <button
-                  type="button"
-                  className="button"
-                  onClick={() => setUseSimpleForm(true)}
-                  style={{ width: '100%' }}
-                >
-                  Заполнить форму вручную
-                </button>
-              </div>
-            </div>
           )}
         </div>
       </div>
