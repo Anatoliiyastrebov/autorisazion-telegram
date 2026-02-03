@@ -77,9 +77,9 @@ export async function POST(request: NextRequest) {
     // Проверка подписи Telegram (опционально, если есть токен бота)
     const botToken = process.env.TELEGRAM_BOT_TOKEN
     if (botToken) {
-      // Проверяем подпись только если есть hash (для Login Widget)
-      // Для Web App проверка происходит через initData
-      if (body.telegram.hash) {
+      // Проверяем подпись только если есть hash (для Login Widget и Web App)
+      // Для простой формы hash будет пустым, пропускаем проверку
+      if (body.telegram.hash && body.telegram.hash.trim() !== '') {
         const isValid = verifyTelegramAuth(body.telegram, botToken)
         if (!isValid) {
           return NextResponse.json(
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
           )
         }
       }
-      // Для Web App можно добавить дополнительную проверку initData, если нужно
+      // Для простой формы (без hash) пропускаем проверку подписи
     }
 
     // Здесь можно сохранить данные в базу данных

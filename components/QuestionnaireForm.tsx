@@ -17,6 +17,11 @@ export default function QuestionnaireForm({
   const [telegramUser, setTelegramUser] = useState<TelegramUser | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [useSimpleForm, setUseSimpleForm] = useState(false)
+  const [simpleFormData, setSimpleFormData] = useState({
+    username: '',
+    first_name: '',
+  })
 
   const handleTelegramAuth = (user: TelegramUser) => {
     console.log('Telegram auth received:', user)
@@ -25,10 +30,38 @@ export default function QuestionnaireForm({
     handleSubmit(user)
   }
 
+  const handleSimpleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!simpleFormData.first_name.trim()) {
+      setError('Пожалуйста, введите ваше имя')
+      return
+    }
+
+    if (!simpleFormData.username.trim()) {
+      setError('Пожалуйста, введите ваш Telegram username (без @)')
+      return
+    }
+
+    setIsSubmitting(true)
+    setError(null)
+
+    // Создаем объект пользователя из простой формы
+    const user: TelegramUser = {
+      id: Date.now(), // Временный ID
+      first_name: simpleFormData.first_name.trim(),
+      username: simpleFormData.username.trim().replace('@', ''),
+      auth_date: Math.floor(Date.now() / 1000),
+      hash: '', // Пустой hash для простой формы
+    }
+
+    await handleSubmit(user)
+  }
+
   const handleSubmit = async (user?: TelegramUser) => {
     const userToSubmit = user || telegramUser
     if (!userToSubmit) {
-      setError('Пожалуйста, авторизуйтесь через Telegram')
+      setError('Пожалуйста, заполните форму')
       return
     }
 
@@ -81,9 +114,6 @@ export default function QuestionnaireForm({
 
         <div className="form-group" style={{ marginTop: '2rem' }}>
           <h2>Авторизация через Telegram</h2>
-          <p style={{ marginBottom: '1rem', color: '#666' }}>
-            Нажмите кнопку ниже, чтобы войти через Telegram и отправить данные
-          </p>
           
           {telegramUser ? (
             <div style={{ padding: '1rem', background: '#e7f3ff', borderRadius: '4px' }}>
@@ -110,8 +140,77 @@ export default function QuestionnaireForm({
                 </p>
               )}
             </div>
+          ) : useSimpleForm ? (
+            <form onSubmit={handleSimpleFormSubmit}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label htmlFor="first_name" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                  Ваше имя <span style={{ color: 'red' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  id="first_name"
+                  value={simpleFormData.first_name}
+                  onChange={(e) => setSimpleFormData({ ...simpleFormData, first_name: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '1rem',
+                  }}
+                  placeholder="Введите ваше имя"
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label htmlFor="username" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                  Telegram username <span style={{ color: 'red' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  id="username"
+                  value={simpleFormData.username}
+                  onChange={(e) => setSimpleFormData({ ...simpleFormData, username: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '1rem',
+                  }}
+                  placeholder="username (без @)"
+                />
+                <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#666' }}>
+                  Введите ваш Telegram username без символа @
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button
+                  type="submit"
+                  className="button"
+                  disabled={isSubmitting}
+                  style={{ flex: 1 }}
+                >
+                  {isSubmitting ? 'Отправка...' : 'Отправить данные'}
+                </button>
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => setUseSimpleForm(false)}
+                  disabled={isSubmitting}
+                >
+                  Назад
+                </button>
+              </div>
+            </form>
           ) : (
             <div>
+              <p style={{ marginBottom: '1rem', color: '#666' }}>
+                Выберите способ авторизации:
+              </p>
+              
+              {/* Пытаемся использовать Web App автоматически */}
               <TelegramLogin
                 botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'}
                 onAuth={handleTelegramAuth}
@@ -120,14 +219,20 @@ export default function QuestionnaireForm({
                 requestAccess={false}
                 usePic={true}
               />
-              <p style={{ marginTop: '1rem', fontSize: '0.9rem', color: '#666' }}>
-                Нажмите кнопку выше, чтобы войти через Telegram
-              </p>
-              {process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME && (
-                <p style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#999' }}>
-                  Бот: {process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME}
+              
+              <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f8f9fa', borderRadius: '4px', textAlign: 'center' }}>
+                <p style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: '#666' }}>
+                  Или используйте простую форму:
                 </p>
-              )}
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => setUseSimpleForm(true)}
+                  style={{ width: '100%' }}
+                >
+                  Заполнить форму вручную
+                </button>
+              </div>
             </div>
           )}
         </div>
