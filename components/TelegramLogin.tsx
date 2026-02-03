@@ -31,39 +31,57 @@ export default function TelegramLogin({
   botName,
   onAuth,
   buttonSize = 'large',
-  cornerRadius = 0,
+  cornerRadius = 4,
   requestAccess = true,
   usePic = true,
 }: TelegramLoginProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (!botName || botName === 'your_bot_name' || !containerRef.current) {
+      return
+    }
+
     // Устанавливаем глобальный обработчик для Telegram Widget
     window.onTelegramAuth = onAuth
 
-    // Создаем скрипт для Telegram Widget
+    // Очищаем контейнер
+    containerRef.current.innerHTML = ''
+
+    // Создаем script тег с data-атрибутами (как в официальной документации Telegram)
     const script = document.createElement('script')
     script.src = 'https://telegram.org/js/telegram-widget.js?22'
     script.setAttribute('data-telegram-login', botName)
     script.setAttribute('data-size', buttonSize)
     script.setAttribute('data-corner-radius', cornerRadius.toString())
-    script.setAttribute('data-request-access', requestAccess ? 'write' : '')
+    if (requestAccess) {
+      script.setAttribute('data-request-access', 'write')
+    }
     script.setAttribute('data-userpic', usePic.toString())
     script.setAttribute('data-onauth', 'onTelegramAuth(user)')
     script.async = true
 
-    if (containerRef.current) {
-      containerRef.current.innerHTML = ''
-      containerRef.current.appendChild(script)
-    }
+    containerRef.current.appendChild(script)
 
     return () => {
       if (window.onTelegramAuth === onAuth) {
         delete window.onTelegramAuth
       }
+      // Очищаем скрипт при размонтировании
+      if (containerRef.current) {
+        containerRef.current.innerHTML = ''
+      }
     }
   }, [botName, onAuth, buttonSize, cornerRadius, requestAccess, usePic])
 
-  return <div ref={containerRef} />
+  if (!botName || botName === 'your_bot_name') {
+    return (
+      <div style={{ padding: '1rem', background: '#fff3cd', borderRadius: '4px', color: '#856404' }}>
+        Ошибка: имя бота не настроено. Проверьте переменную окружения NEXT_PUBLIC_TELEGRAM_BOT_NAME
+      </div>
+    )
+  }
+
+  return <div ref={containerRef} style={{ minHeight: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center' }} />
 }
 

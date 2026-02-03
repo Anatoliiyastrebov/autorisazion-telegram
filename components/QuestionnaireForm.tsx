@@ -112,7 +112,7 @@ export default function QuestionnaireForm({
           ) : (
             <div>
               <TelegramLogin
-                botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'your_bot_name'}
+                botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'}
                 onAuth={handleTelegramAuth}
                 buttonSize="large"
                 cornerRadius={4}
@@ -122,6 +122,11 @@ export default function QuestionnaireForm({
               <p style={{ marginTop: '1rem', fontSize: '0.9rem', color: '#666' }}>
                 Нажмите кнопку выше, чтобы войти через Telegram
               </p>
+              {process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME && (
+                <p style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#999' }}>
+                  Бот: {process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME}
+                </p>
+              )}
             </div>
           )}
         </div>
