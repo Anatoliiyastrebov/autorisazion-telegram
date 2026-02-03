@@ -136,8 +136,12 @@ export default function QuestionnaireForm({
       return
     }
     
+    // Сохраняем данные пользователя
     setTelegramUser(user)
-    // Не показываем модальное окно, просто сохраняем данные
+    setError(null) // Очищаем предыдущие ошибки
+    
+    // Показываем успешное сообщение
+    console.log('✅ Telegram авторизация успешна:', user.first_name, user.username)
   }
 
   const handleInputChange = (questionId: string, value: string) => {
