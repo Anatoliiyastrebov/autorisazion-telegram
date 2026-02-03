@@ -14,6 +14,7 @@ interface TelegramData {
 
 interface SubmitRequest {
   questionnaireType: string
+  answers?: Record<string, string> // Ответы на вопросы анкеты
   telegram: TelegramData
 }
 
@@ -225,13 +226,21 @@ export async function POST(request: NextRequest) {
       
       // Формируем сообщение для администратора/группы
       // Данные уже проверены выше, поэтому они достоверные
-      const adminMessage = `🔔 Новая авторизация через анкету!\n\n` +
+      let adminMessage = `🔔 Новая анкета!\n\n` +
         `✅ Данные проверены через Telegram\n\n` +
         `📋 Тип анкеты: ${body.questionnaireType}\n` +
         `👤 Имя: ${body.telegram.first_name}${body.telegram.last_name ? ' ' + body.telegram.last_name : ''}\n` +
         `🆔 Username: ${verifiedUsername ? '@' + verifiedUsername : 'не указан'}\n` +
         `🆔 ID: ${body.telegram.id}\n` +
-        `🔗 Ссылка: ${verifiedUsername ? `https://t.me/${verifiedUsername}` : 'недоступна'}`
+        `🔗 Ссылка: ${verifiedUsername ? `https://t.me/${verifiedUsername}` : 'недоступна'}\n\n`
+      
+      // Добавляем ответы на вопросы анкеты, если они есть
+      if (body.answers && Object.keys(body.answers).length > 0) {
+        adminMessage += `📝 Ответы на вопросы:\n`
+        for (const [questionId, answer] of Object.entries(body.answers)) {
+          adminMessage += `\n• ${questionId}: ${answer}`
+        }
+      }
 
       // Отправляем в группу напрямую через Telegram API
       // Если группа была преобразована в супергруппу, используем migrate_to_chat_id из ошибки
