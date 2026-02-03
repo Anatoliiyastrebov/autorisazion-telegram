@@ -61,42 +61,124 @@ export default function QuestionnaireForm({
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    // Сначала проверяем, если открыто напрямую из Telegram Web App
-    if (window.Telegram?.WebApp?.initDataUnsafe?.user && !telegramUser) {
+    // Ждем, пока Telegram Web App полностью инициализируется
+    const checkTelegramWebApp = () => {
+      if (!window.Telegram?.WebApp) {
+        console.log('ℹ️ Telegram Web App не обнаружен')
+        return
+      }
+
       const webApp = window.Telegram.WebApp
       webApp.ready()
       webApp.expand()
 
-      const webAppUser = webApp.initDataUnsafe.user
-      const initData = webApp.initDataUnsafe
+      console.log('🔍 Проверка данных Telegram Web App:', {
+        hasWebApp: !!window.Telegram?.WebApp,
+        hasInitDataUnsafe: !!webApp.initDataUnsafe,
+        hasUser: !!webApp.initDataUnsafe?.user,
+        initDataUnsafe: webApp.initDataUnsafe,
+        initData: webApp.initData ? 'present' : 'missing',
+      })
 
-      if (webAppUser && initData?.auth_date && initData?.hash) {
-        console.log('✅ Telegram Web App: загружаю данные пользователя')
-        const user = {
-          id: webAppUser.id,
-          first_name: webAppUser.first_name,
-          last_name: webAppUser.last_name,
-          username: webAppUser.username,
-          photo_url: webAppUser.photo_url,
-          auth_date: initData.auth_date,
-          hash: initData.hash,
-          initData: webApp.initData,
-        }
+      // Сначала проверяем, если открыто напрямую из Telegram Web App
+      if (webApp.initDataUnsafe?.user && !telegramUser) {
+        const webAppUser = webApp.initDataUnsafe.user
+        const initData = webApp.initDataUnsafe
 
-        setTelegramUser(user)
-        // Заполняем имя и фамилию из Telegram автоматически
-        setAnswers(prev => {
-          const newAnswers = { ...prev }
-          if (user.first_name && !newAnswers.first_name) {
-            newAnswers.first_name = user.first_name
-          }
-          if (user.last_name && !newAnswers.last_name) {
-            newAnswers.last_name = user.last_name
-          }
-          return newAnswers
+        console.log('📋 Данные пользователя из Web App:', {
+          user: webAppUser,
+          auth_date: initData?.auth_date,
+          hash: initData?.hash ? 'present' : 'missing',
         })
-        return
+
+        if (webAppUser && initData?.auth_date && initData?.hash) {
+          console.log('✅ Telegram Web App: загружаю данные пользователя')
+          const user = {
+            id: webAppUser.id,
+            first_name: webAppUser.first_name,
+            last_name: webAppUser.last_name,
+            username: webAppUser.username,
+            photo_url: webAppUser.photo_url,
+            auth_date: initData.auth_date,
+            hash: initData.hash,
+            initData: webApp.initData,
+          }
+
+          setTelegramUser(user)
+          // Заполняем имя и фамилию из Telegram автоматически
+          setAnswers(prev => {
+            const newAnswers = { ...prev }
+            if (user.first_name && !newAnswers.first_name) {
+              newAnswers.first_name = user.first_name
+            }
+            if (user.last_name && !newAnswers.last_name) {
+              newAnswers.last_name = user.last_name
+            }
+            return newAnswers
+          })
+          return
+        } else {
+          console.warn('⚠️ Telegram Web App обнаружен, но данные пользователя неполные:', {
+            hasUser: !!webAppUser,
+            hasAuthDate: !!initData?.auth_date,
+            hasHash: !!initData?.hash,
+          })
+        }
+      } else if (window.Telegram?.WebApp && !webApp.initDataUnsafe?.user) {
+        console.log('ℹ️ Telegram Web App detected but user data not available')
+        
+        // Попробуем получить данные из initData строки напрямую
+        if (webApp.initData) {
+          console.log('🔍 Пытаюсь парсить initData строку:', webApp.initData.substring(0, 100))
+          try {
+            // Парсим initData строку (формат: key=value&key2=value2)
+            const params = new URLSearchParams(webApp.initData)
+            const userParam = params.get('user')
+            if (userParam) {
+              const userData = JSON.parse(decodeURIComponent(userParam))
+              console.log('✅ Найдены данные пользователя в initData:', userData)
+              
+              const user = {
+                id: userData.id,
+                first_name: userData.first_name,
+                last_name: userData.last_name,
+                username: userData.username,
+                photo_url: userData.photo_url,
+                auth_date: parseInt(params.get('auth_date') || '0'),
+                hash: params.get('hash') || '',
+                initData: webApp.initData,
+              }
+              
+              if (user.id && user.first_name) {
+                setTelegramUser(user)
+                setAnswers(prev => {
+                  const newAnswers = { ...prev }
+                  if (user.first_name && !newAnswers.first_name) {
+                    newAnswers.first_name = user.first_name
+                  }
+                  if (user.last_name && !newAnswers.last_name) {
+                    newAnswers.last_name = user.last_name
+                  }
+                  return newAnswers
+                })
+                return
+              }
+            }
+          } catch (error) {
+            console.error('❌ Ошибка при парсинге initData:', error)
+          }
+        }
       }
+    }
+
+    // Проверяем сразу
+    checkTelegramWebApp()
+
+    // Также проверяем после небольшой задержки, на случай если Web App еще загружается
+    const timeoutId = setTimeout(checkTelegramWebApp, 500)
+    
+    return () => {
+      clearTimeout(timeoutId)
     }
 
     // Проверяем параметр auth=confirmed из URL (после подтверждения в Web App)
