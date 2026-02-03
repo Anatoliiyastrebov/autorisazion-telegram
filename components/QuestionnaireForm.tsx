@@ -50,7 +50,7 @@ export default function QuestionnaireForm({
 
   // Проверяем данные из localStorage (после подтверждения в Web App)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && !telegramUser) {
       // Проверяем параметр auth=confirmed из URL
       const urlParams = new URLSearchParams(window.location.search)
       if (urlParams.get('auth') === 'confirmed') {
@@ -60,12 +60,16 @@ export default function QuestionnaireForm({
             const user = JSON.parse(savedUser)
             setTelegramUser(user)
             // Заполняем имя и фамилию из Telegram, если они есть
-            if (user.first_name && !answers.first_name) {
-              setAnswers(prev => ({ ...prev, first_name: user.first_name }))
-            }
-            if (user.last_name && !answers.last_name) {
-              setAnswers(prev => ({ ...prev, last_name: user.last_name }))
-            }
+            setAnswers(prev => {
+              const newAnswers = { ...prev }
+              if (user.first_name && !newAnswers.first_name) {
+                newAnswers.first_name = user.first_name
+              }
+              if (user.last_name && !newAnswers.last_name) {
+                newAnswers.last_name = user.last_name
+              }
+              return newAnswers
+            })
             // Очищаем параметр из URL
             window.history.replaceState({}, '', window.location.pathname)
           } catch (error) {
@@ -97,16 +101,20 @@ export default function QuestionnaireForm({
 
           setTelegramUser(user)
           // Заполняем имя и фамилию из Telegram
-          if (user.first_name && !answers.first_name) {
-            setAnswers(prev => ({ ...prev, first_name: user.first_name }))
-          }
-          if (user.last_name && !answers.last_name) {
-            setAnswers(prev => ({ ...prev, last_name: user.last_name }))
-          }
+          setAnswers(prev => {
+            const newAnswers = { ...prev }
+            if (user.first_name && !newAnswers.first_name) {
+              newAnswers.first_name = user.first_name
+            }
+            if (user.last_name && !newAnswers.last_name) {
+              newAnswers.last_name = user.last_name
+            }
+            return newAnswers
+          })
         }
       }
     }
-  }, [answers])
+  }, [telegramUser])
 
 
 
