@@ -17,10 +17,6 @@ export default function QuestionnaireForm({
   const [telegramUser, setTelegramUser] = useState<TelegramUser | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [simpleFormData, setSimpleFormData] = useState({
-    username: '',
-    first_name: '',
-  })
 
   const handleTelegramAuth = (user: TelegramUser) => {
     console.log('Telegram auth received:', user)
@@ -29,38 +25,17 @@ export default function QuestionnaireForm({
     handleSubmit(user)
   }
 
-  const handleSimpleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!simpleFormData.first_name.trim()) {
-      setError('Пожалуйста, введите ваше имя')
-      return
-    }
-
-    if (!simpleFormData.username.trim()) {
-      setError('Пожалуйста, введите ваш Telegram username (без @)')
-      return
-    }
-
-    setIsSubmitting(true)
-    setError(null)
-
-    // Создаем объект пользователя из простой формы
-    const user: TelegramUser = {
-      id: Date.now(), // Временный ID
-      first_name: simpleFormData.first_name.trim(),
-      username: simpleFormData.username.trim().replace('@', ''),
-      auth_date: Math.floor(Date.now() / 1000),
-      hash: '', // Пустой hash для простой формы
-    }
-
-    await handleSubmit(user)
-  }
-
   const handleSubmit = async (user?: TelegramUser) => {
     const userToSubmit = user || telegramUser
     if (!userToSubmit) {
-      setError('Пожалуйста, заполните форму')
+      setError('Пожалуйста, авторизуйтесь через Telegram')
+      return
+    }
+
+    // Проверяем, что данные из реальной авторизации Telegram (есть hash)
+    if (!userToSubmit.hash || userToSubmit.hash.trim() === '') {
+      setError('Ошибка: данные не прошли проверку авторизации Telegram')
+      setIsSubmitting(false)
       return
     }
 
@@ -113,6 +88,9 @@ export default function QuestionnaireForm({
 
         <div className="form-group" style={{ marginTop: '2rem' }}>
           <h2>Авторизация через Telegram</h2>
+          <p style={{ marginBottom: '1rem', color: '#666' }}>
+            Авторизуйтесь через Telegram, чтобы отправить ваши данные. Мы свяжемся с вами в Telegram.
+          </p>
           
           {telegramUser ? (
             <div style={{ padding: '1rem', background: '#e7f3ff', borderRadius: '4px' }}>
@@ -135,83 +113,27 @@ export default function QuestionnaireForm({
               )}
               {isSubmitting && (
                 <p style={{ marginTop: '1rem', color: '#666' }}>
-                  Отправка данных...
+                  Проверка данных и отправка...
                 </p>
               )}
             </div>
           ) : (
-            <form onSubmit={handleSimpleFormSubmit}>
-              <p style={{ marginBottom: '1rem', color: '#666' }}>
-                Заполните форму, чтобы отправить ваши данные. Мы свяжемся с вами в Telegram.
+            <div>
+              <TelegramLogin
+                botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'}
+                onAuth={handleTelegramAuth}
+                buttonSize="large"
+                cornerRadius={4}
+                requestAccess={false}
+                usePic={true}
+              />
+              <p style={{ marginTop: '1rem', fontSize: '0.9rem', color: '#666', textAlign: 'center' }}>
+                Нажмите кнопку выше, чтобы войти через Telegram
               </p>
-              
-              <div style={{ marginBottom: '1rem' }}>
-                <label htmlFor="first_name" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
-                  Ваше имя <span style={{ color: 'red' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  id="first_name"
-                  value={simpleFormData.first_name}
-                  onChange={(e) => setSimpleFormData({ ...simpleFormData, first_name: e.target.value })}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    fontSize: '1rem',
-                  }}
-                  placeholder="Введите ваше имя"
-                />
-              </div>
-              <div style={{ marginBottom: '1rem' }}>
-                <label htmlFor="username" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
-                  Telegram username <span style={{ color: 'red' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  id="username"
-                  value={simpleFormData.username}
-                  onChange={(e) => setSimpleFormData({ ...simpleFormData, username: e.target.value })}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    fontSize: '1rem',
-                  }}
-                  placeholder="username (без @)"
-                />
-                <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#666' }}>
-                  Введите ваш Telegram username без символа @. Например: если ваш username @ivanov, введите: ivanov
-                </p>
-              </div>
-              <button
-                type="submit"
-                className="button"
-                disabled={isSubmitting}
-                style={{ width: '100%' }}
-              >
-                {isSubmitting ? 'Отправка...' : 'Отправить данные'}
-              </button>
-              
-              {/* Автоматическая авторизация через Web App (если открыто из Telegram) */}
-              <div style={{ marginTop: '1.5rem' }}>
-                <TelegramLogin
-                  botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'}
-                  onAuth={handleTelegramAuth}
-                  buttonSize="large"
-                  cornerRadius={4}
-                  requestAccess={false}
-                  usePic={true}
-                />
-                <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#999', textAlign: 'center' }}>
-                  Если вы открыли сайт из Telegram, авторизация произойдет автоматически
-                </p>
-              </div>
-            </form>
+              <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#999', textAlign: 'center' }}>
+                Если вы открыли сайт из Telegram, авторизация произойдет автоматически
+              </p>
+            </div>
           )}
         </div>
       </div>
