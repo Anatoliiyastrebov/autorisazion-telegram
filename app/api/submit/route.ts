@@ -108,13 +108,51 @@ export async function POST(request: NextRequest) {
     if (botToken) {
       const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`
       
+      // Проверяем, является ли ID временным (из простой формы)
+      const isTemporaryId = body.telegram.id > 1000000000000 // Временные ID очень большие
+      let verifiedUsername = body.telegram.username
+      let verifiedName = body.telegram.first_name
+      
+      // Если это данные из простой формы (временный ID), проверяем существование username
+      if (isTemporaryId && body.telegram.username) {
+        try {
+          // Пытаемся получить информацию о пользователе через getChat
+          const getUserUrl = `https://api.telegram.org/bot${botToken}/getChat`
+          const userResponse = await fetch(getUserUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              chat_id: `@${body.telegram.username}`,
+            }),
+          })
+          
+          const userResult = await userResponse.json()
+          if (userResult.ok && userResult.result) {
+            // Пользователь существует, используем реальные данные
+            verifiedName = userResult.result.first_name || body.telegram.first_name
+            verifiedUsername = userResult.result.username || body.telegram.username
+            console.log('✅ Username проверен, пользователь существует:', verifiedUsername)
+          } else {
+            // Пользователь не найден
+            console.warn('⚠️ Username не найден или не существует:', body.telegram.username)
+            // Помечаем в сообщении, что данные не проверены
+          }
+        } catch (error) {
+          console.warn('⚠️ Ошибка при проверке username:', error)
+        }
+      }
+      
       // Формируем сообщение для администратора/группы
+      const sourceInfo = isTemporaryId ? '⚠️ Данные из простой формы (не проверены)' : '✅ Данные из Telegram авторизации'
       const adminMessage = `🔔 Новая авторизация через анкету!\n\n` +
+        `${sourceInfo}\n\n` +
         `📋 Тип анкеты: ${body.questionnaireType}\n` +
-        `👤 Имя: ${body.telegram.first_name}${body.telegram.last_name ? ' ' + body.telegram.last_name : ''}\n` +
-        `🆔 Username: ${body.telegram.username ? '@' + body.telegram.username : 'не указан'}\n` +
-        `🆔 ID: ${body.telegram.id}\n` +
-        `🔗 Ссылка: ${body.telegram.username ? `https://t.me/${body.telegram.username}` : 'недоступна'}`
+        `👤 Имя: ${verifiedName}${body.telegram.last_name ? ' ' + body.telegram.last_name : ''}\n` +
+        `🆔 Username: ${verifiedUsername ? '@' + verifiedUsername : 'не указан'}\n` +
+        `🆔 ID: ${body.telegram.id}${isTemporaryId ? ' (временный)' : ''}\n` +
+        `🔗 Ссылка: ${verifiedUsername ? `https://t.me/${verifiedUsername}` : 'недоступна'}`
 
       // Отправляем в группу напрямую через Telegram API
       // Если группа была преобразована в супергруппу, используем migrate_to_chat_id из ошибки
