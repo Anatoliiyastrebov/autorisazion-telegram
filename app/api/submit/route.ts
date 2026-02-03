@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Проверка подписи Telegram (обязательно)
+    // Получаем токен бота для отправки сообщений
     const botToken = process.env.TELEGRAM_BOT_TOKEN
     if (!botToken) {
       return NextResponse.json(
@@ -147,65 +147,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Проверяем, что данные из реальной авторизации Telegram (есть hash)
-    if (!body.telegram.hash || body.telegram.hash.trim() === '') {
-      return NextResponse.json(
-        { error: 'Данные не прошли авторизацию через Telegram. Пожалуйста, авторизуйтесь через Telegram.' },
-        { status: 401 }
-      )
-    }
-
-    // Проверяем подпись Telegram
-    const isValid = verifyTelegramAuth(body.telegram, botToken)
-    if (!isValid) {
-      return NextResponse.json(
-        { error: 'Неверная подпись Telegram. Данные не прошли проверку.' },
-        { status: 401 }
-      )
-    }
-
-    // Проверяем существование username через Telegram API
-    let verifiedUsername = body.telegram.username
-    if (body.telegram.username) {
-      try {
-        console.log('🔍 Проверяю username через Telegram API:', body.telegram.username)
-        const getUserUrl = `https://api.telegram.org/bot${botToken}/getChat`
-        const userResponse = await fetch(getUserUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            chat_id: `@${body.telegram.username}`,
-          }),
-        })
-        
-        const userResult = await userResponse.json()
-        console.log('🔍 Результат проверки username:', userResult)
-        
-        if (!userResponse.ok || !userResult.ok || !userResult.result) {
-          console.error('❌ Username не найден или недоступен:', userResult)
-          return NextResponse.json(
-            { error: `Пользователь @${body.telegram.username} не найден в Telegram. Проверьте правильность username.` },
-            { status: 404 }
-          )
-        }
-        verifiedUsername = userResult.result.username || body.telegram.username
-        console.log('✅ Username проверен, пользователь существует:', verifiedUsername)
-      } catch (error) {
-        console.error('❌ Ошибка при проверке username:', error)
-        return NextResponse.json(
-          { error: 'Ошибка при проверке существования пользователя' },
-          { status: 500 }
-        )
-      }
-    } else {
-      console.warn('⚠️ Username не указан в данных пользователя')
-      return NextResponse.json(
-        { error: 'Для авторизации необходим Telegram username.' },
-        { status: 400 }
-      )
-    }
+    // Используем username из данных (без проверки)
+    let verifiedUsername = body.telegram.username || 'не указан'
 
     // Здесь можно сохранить данные в базу данных
     // Например: await saveToDatabase(body)

@@ -10,33 +10,12 @@ interface QuestionnaireFormProps {
   questionnaireType: string
 }
 
-// Вопросы для разных типов анкет
+// Вопросы для разных типов анкет (пока пусто)
 const questionnaireQuestions: Record<string, Array<{ id: string; label: string; type: 'text' | 'textarea' | 'number' | 'select'; options?: string[] }>> = {
-  women: [
-    { id: 'age', label: 'Ваш возраст', type: 'number' },
-    { id: 'city', label: 'Город проживания', type: 'text' },
-    { id: 'interests', label: 'Ваши интересы', type: 'textarea' },
-    { id: 'about', label: 'Расскажите о себе', type: 'textarea' },
-  ],
-  men: [
-    { id: 'age', label: 'Ваш возраст', type: 'number' },
-    { id: 'city', label: 'Город проживания', type: 'text' },
-    { id: 'profession', label: 'Профессия', type: 'text' },
-    { id: 'hobbies', label: 'Хобби и увлечения', type: 'textarea' },
-  ],
-  basic: [
-    { id: 'name', label: 'Ваше имя', type: 'text' },
-    { id: 'age', label: 'Возраст', type: 'number' },
-    { id: 'contact', label: 'Контактная информация', type: 'text' },
-  ],
-  extended: [
-    { id: 'age', label: 'Ваш возраст', type: 'number' },
-    { id: 'city', label: 'Город', type: 'text' },
-    { id: 'education', label: 'Образование', type: 'select', options: ['Среднее', 'Высшее', 'Неоконченное высшее'] },
-    { id: 'work', label: 'Место работы', type: 'text' },
-    { id: 'about', label: 'О себе', type: 'textarea' },
-    { id: 'goals', label: 'Цели и планы', type: 'textarea' },
-  ],
+  women: [],
+  men: [],
+  basic: [],
+  extended: [],
 }
 
 export default function QuestionnaireForm({
@@ -45,10 +24,8 @@ export default function QuestionnaireForm({
 }: QuestionnaireFormProps) {
   const router = useRouter()
   const questions = questionnaireQuestions[questionnaireType] || []
-  const [currentStep, setCurrentStep] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [telegramUser, setTelegramUser] = useState<TelegramUser | null>(null)
-  const [showModal, setShowModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -144,42 +121,11 @@ export default function QuestionnaireForm({
     console.log('✅ Telegram авторизация успешна:', user.first_name, user.username)
   }
 
-  const handleInputChange = (questionId: string, value: string) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [questionId]: value,
-    }))
-  }
-
-  const handleNext = () => {
-    if (currentStep < questions.length - 1) {
-      setCurrentStep(currentStep + 1)
-    }
-  }
-
-  const handlePrevious = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1)
-    }
-  }
 
   const handleSubmit = async () => {
-    // Проверяем, что все вопросы заполнены
-    const unansweredQuestions = questions.filter((q) => !answers[q.id] || answers[q.id].trim() === '')
-    if (unansweredQuestions.length > 0) {
-      setError('Пожалуйста, заполните все вопросы')
-      return
-    }
-
     // Проверяем, что пользователь авторизован через Telegram
     if (!telegramUser) {
       setError('Пожалуйста, авторизуйтесь через Telegram перед отправкой анкеты')
-      return
-    }
-
-    // Проверяем, что данные из реальной авторизации Telegram (есть hash)
-    if (!telegramUser.hash || telegramUser.hash.trim() === '') {
-      setError('Ошибка: данные не прошли проверку авторизации Telegram')
       return
     }
 
@@ -238,9 +184,6 @@ export default function QuestionnaireForm({
     }
   }
 
-  const currentQuestion = questions[currentStep]
-  const isLastStep = currentStep === questions.length - 1
-  const isFirstStep = currentStep === 0
 
   return (
     <>
@@ -250,99 +193,19 @@ export default function QuestionnaireForm({
 
           {error && <div className="error-message">{error}</div>}
 
-          {/* Индикатор прогресса */}
-          {questions.length > 0 && (
-            <div className="step-indicator" style={{ marginTop: '1rem', marginBottom: '2rem' }}>
-              {questions.map((_, index) => (
-                <div
-                  key={index}
-                  className={`step ${index === currentStep ? 'active' : index < currentStep ? 'completed' : ''}`}
-                >
-                  {index + 1}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Вопросы анкеты */}
-          {questions.length > 0 && currentQuestion && (
-            <div className="form-group">
-              <label htmlFor={currentQuestion.id}>
-                {currentQuestion.label}
-                {!answers[currentQuestion.id] && <span style={{ color: 'red' }}> *</span>}
-              </label>
-              
-              {currentQuestion.type === 'textarea' ? (
-                <textarea
-                  id={currentQuestion.id}
-                  value={answers[currentQuestion.id] || ''}
-                  onChange={(e) => handleInputChange(currentQuestion.id, e.target.value)}
-                  rows={5}
-                  required
-                />
-              ) : currentQuestion.type === 'select' ? (
-                <select
-                  id={currentQuestion.id}
-                  value={answers[currentQuestion.id] || ''}
-                  onChange={(e) => handleInputChange(currentQuestion.id, e.target.value)}
-                  required
-                >
-                  <option value="">Выберите...</option>
-                  {currentQuestion.options?.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  id={currentQuestion.id}
-                  type={currentQuestion.type}
-                  value={answers[currentQuestion.id] || ''}
-                  onChange={(e) => handleInputChange(currentQuestion.id, e.target.value)}
-                  required
-                />
-              )}
-            </div>
-          )}
-
-          {/* Навигация по шагам */}
-          {questions.length > 0 && (
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', justifyContent: 'space-between' }}>
-              <button
-                className="button button-secondary"
-                onClick={handlePrevious}
-                disabled={isFirstStep}
-              >
-                Назад
-              </button>
-              
-              {!isLastStep ? (
-                <button
-                  className="button"
-                  onClick={handleNext}
-                  disabled={!answers[currentQuestion.id] || answers[currentQuestion.id].trim() === ''}
-                >
-                  Далее
-                </button>
-              ) : (
-                <button
-                  className="button"
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || !telegramUser}
-                >
-                  {isSubmitting ? 'Отправка...' : 'Отправить анкету'}
-                </button>
-              )}
-            </div>
-          )}
+          {/* Информация об анкете */}
+          <div style={{ marginTop: '1rem', marginBottom: '2rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
+            <p style={{ color: '#666', textAlign: 'center' }}>
+              Анкета пока без вопросов. Авторизуйтесь через Telegram для отправки данных.
+            </p>
+          </div>
 
           {/* Блок авторизации через Telegram */}
-          <div className="form-group" style={{ marginTop: '3rem', paddingTop: '2rem', borderTop: '1px solid #e0e0e0' }}>
+          <div className="form-group" style={{ marginTop: '2rem' }}>
             <h2>Авторизация через Telegram</h2>
             
             {telegramUser ? (
-              <div style={{ padding: '1.5rem', background: '#e7f3ff', borderRadius: '8px', border: '1px solid #0088cc' }}>
+              <div style={{ padding: '1.5rem', background: '#e7f3ff', borderRadius: '8px', border: '1px solid #0088cc', marginBottom: '2rem' }}>
                 <p style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}>
                   <strong>✅ Авторизован:</strong> {telegramUser.first_name}
                   {telegramUser.last_name && ` ${telegramUser.last_name}`}
@@ -361,9 +224,16 @@ export default function QuestionnaireForm({
                     </a>
                   </p>
                 )}
-                <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#666' }}>
-                  После заполнения всех вопросов вы сможете отправить анкету.
-                </p>
+                <div style={{ marginTop: '1.5rem' }}>
+                  <button
+                    className="button"
+                    onClick={handleSubmit}
+                    disabled={isSubmitting}
+                    style={{ width: '100%' }}
+                  >
+                    {isSubmitting ? 'Отправка...' : 'Отправить анкету'}
+                  </button>
+                </div>
               </div>
             ) : (
               <div>
