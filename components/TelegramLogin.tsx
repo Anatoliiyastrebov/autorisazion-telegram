@@ -63,33 +63,12 @@ export default function TelegramLogin({
     }
 
     // Сначала проверяем Web App (быстрая проверка)
+    // Если Web App доступен, данные уже обрабатываются в QuestionnaireForm
+    // Здесь просто не показываем виджет, если это Web App
     if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
-      const webAppUser = window.Telegram.WebApp.initDataUnsafe.user
-      const initData = window.Telegram.WebApp.initDataUnsafe
-      const initDataString = window.Telegram.WebApp.initData // Оригинальная строка
-      
-      if (webAppUser && initData.auth_date && initData.hash) {
-        setIsWebApp(true)
-        
-        const user: TelegramUser = {
-          id: webAppUser.id,
-          first_name: webAppUser.first_name,
-          last_name: webAppUser.last_name,
-          username: webAppUser.username,
-          photo_url: webAppUser.photo_url,
-          auth_date: initData.auth_date,
-          hash: initData.hash,
-          initData: initDataString, // Сохраняем оригинальную строку для проверки
-        }
-        
-        window.Telegram.WebApp.ready()
-        window.Telegram.WebApp.expand()
-        
-        setTimeout(() => {
-          onAuth(user)
-        }, 100)
-        return
-      }
+      setIsWebApp(true)
+      // Данные обрабатываются в QuestionnaireForm через useEffect
+      return
     }
 
     // Устанавливаем глобальный обработчик для Telegram Widget

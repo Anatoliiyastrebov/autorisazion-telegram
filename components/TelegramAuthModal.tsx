@@ -67,9 +67,9 @@ export default function TelegramAuthModal({
           </div>
           
           <div className="modal-message">
-            <p>Ваши данные из Telegram успешно получены.</p>
+            <p>✅ Ваши данные из Telegram успешно получены автоматически.</p>
             <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#666' }}>
-              Нажмите "Подтвердить", чтобы отправить данные.
+              Пожалуйста, подтвердите отправку данных, нажав кнопку "Подтвердить" ниже.
             </p>
           </div>
         </div>

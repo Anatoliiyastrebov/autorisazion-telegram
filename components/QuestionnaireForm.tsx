@@ -23,12 +23,19 @@ export default function QuestionnaireForm({
   // Проверяем Telegram Web App при загрузке компонента
   useEffect(() => {
     const checkWebApp = () => {
-      if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initDataUnsafe?.user) {
-        const webAppUser = window.Telegram.WebApp.initDataUnsafe.user
+      if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+        // Инициализируем Web App
+        window.Telegram.WebApp.ready()
+        window.Telegram.WebApp.expand()
+        
+        // Проверяем наличие данных пользователя
+        const webAppUser = window.Telegram.WebApp.initDataUnsafe?.user
         const initData = window.Telegram.WebApp.initDataUnsafe
         const initDataString = window.Telegram.WebApp.initData // Оригинальная строка
         
-        if (webAppUser && initData.auth_date && initData.hash) {
+        if (webAppUser && initData?.auth_date && initData?.hash) {
+          console.log('✅ Telegram Web App detected, user data available')
+          
           const user: TelegramUser = {
             id: webAppUser.id,
             first_name: webAppUser.first_name,
@@ -40,13 +47,14 @@ export default function QuestionnaireForm({
             initData: initDataString, // Сохраняем оригинальную строку для проверки
           }
           
-          window.Telegram.WebApp.ready()
-          window.Telegram.WebApp.expand()
-          
-          // Показываем модальное окно с данными пользователя
+          // Автоматически показываем модальное окно с данными для согласия
           setTelegramUser(user)
           setShowModal(true)
+        } else {
+          console.log('ℹ️ Telegram Web App detected but user data not available yet')
         }
+      } else {
+        console.log('ℹ️ Not opened from Telegram, will use Login Widget')
       }
     }
 
@@ -54,9 +62,15 @@ export default function QuestionnaireForm({
     checkWebApp()
 
     // Также проверяем через небольшую задержку на случай, если скрипт загружается
-    const timer = setTimeout(checkWebApp, 500)
+    const timer = setTimeout(checkWebApp, 300)
+    
+    // Проверяем еще раз через секунду (на случай медленной загрузки)
+    const timer2 = setTimeout(checkWebApp, 1000)
 
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      clearTimeout(timer2)
+    }
   }, [])
 
   const handleTelegramAuth = (user: TelegramUser) => {
@@ -166,8 +180,8 @@ export default function QuestionnaireForm({
             <h2>Авторизация через Telegram</h2>
             <p style={{ marginBottom: '1rem', color: '#666' }}>
               {typeof window !== 'undefined' && window.Telegram?.WebApp?.initDataUnsafe?.user
-                ? 'Ваши данные из Telegram загружены. Подтвердите отправку.'
-                : 'Авторизуйтесь через Telegram, чтобы отправить ваши данные. Мы свяжемся с вами в Telegram.'}
+                ? '✅ Ваши данные из Telegram загружены автоматически. Подтвердите отправку в модальном окне.'
+                : 'Для автоматической авторизации откройте этот сайт из Telegram. Или используйте кнопку ниже для авторизации через браузер.'}
             </p>
             
             {telegramUser && !showModal ? (
@@ -197,20 +211,47 @@ export default function QuestionnaireForm({
               </div>
             ) : !showModal ? (
               <div>
-                <TelegramLogin
-                  botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'}
-                  onAuth={handleTelegramAuth}
-                  buttonSize="large"
-                  cornerRadius={4}
-                  requestAccess={false}
-                  usePic={true}
-                />
-                <p style={{ marginTop: '1rem', fontSize: '0.9rem', color: '#666', textAlign: 'center' }}>
-                  Нажмите кнопку выше, чтобы войти через Telegram
-                </p>
-                <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#999', textAlign: 'center' }}>
-                  Или откройте сайт из Telegram для автоматической авторизации
-                </p>
+                {typeof window !== 'undefined' && window.Telegram?.WebApp ? (
+                  <div style={{ 
+                    padding: '1.5rem', 
+                    background: '#fff3cd', 
+                    borderRadius: '8px',
+                    border: '1px solid #ffc107',
+                    textAlign: 'center'
+                  }}>
+                    <p style={{ marginBottom: '0.5rem', fontWeight: 500, color: '#856404' }}>
+                      ⚠️ Данные пользователя не загружены
+                    </p>
+                    <p style={{ fontSize: '0.9rem', color: '#856404' }}>
+                      Для автоматической авторизации откройте этот сайт из Telegram через бота или меню-кнопку.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <TelegramLogin
+                      botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'}
+                      onAuth={handleTelegramAuth}
+                      buttonSize="large"
+                      cornerRadius={4}
+                      requestAccess={false}
+                      usePic={true}
+                    />
+                    <div style={{ 
+                      marginTop: '1rem', 
+                      padding: '1rem', 
+                      background: '#e7f3ff', 
+                      borderRadius: '8px',
+                      border: '1px solid #0088cc'
+                    }}>
+                      <p style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: '#004085', fontWeight: 500 }}>
+                        💡 Рекомендация
+                      </p>
+                      <p style={{ fontSize: '0.85rem', color: '#004085' }}>
+                        Для автоматической авторизации без подтверждений откройте этот сайт из Telegram через бота или меню-кнопку.
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             ) : null}
           </div>
