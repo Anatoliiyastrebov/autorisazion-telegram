@@ -101,8 +101,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Проверяем существование username через Telegram API
+    let verifiedUsername = body.telegram.username
     if (body.telegram.username) {
       try {
+        console.log('🔍 Проверяю username через Telegram API:', body.telegram.username)
         const getUserUrl = `https://api.telegram.org/bot${botToken}/getChat`
         const userResponse = await fetch(getUserUrl, {
           method: 'POST',
@@ -115,31 +117,41 @@ export async function POST(request: NextRequest) {
         })
         
         const userResult = await userResponse.json()
-        if (!userResult.ok || !userResult.result) {
+        console.log('🔍 Результат проверки username:', userResult)
+        
+        if (!userResponse.ok || !userResult.ok || !userResult.result) {
+          console.error('❌ Username не найден или недоступен:', userResult)
           return NextResponse.json(
             { error: `Пользователь @${body.telegram.username} не найден в Telegram. Проверьте правильность username.` },
             { status: 404 }
           )
         }
-        console.log('✅ Username проверен, пользователь существует:', body.telegram.username)
+        verifiedUsername = userResult.result.username || body.telegram.username
+        console.log('✅ Username проверен, пользователь существует:', verifiedUsername)
       } catch (error) {
-        console.error('Ошибка при проверке username:', error)
+        console.error('❌ Ошибка при проверке username:', error)
         return NextResponse.json(
           { error: 'Ошибка при проверке существования пользователя' },
           { status: 500 }
         )
       }
+    } else {
+      console.warn('⚠️ Username не указан в данных пользователя')
+      return NextResponse.json(
+        { error: 'Для авторизации необходим Telegram username.' },
+        { status: 400 }
+      )
     }
 
     // Здесь можно сохранить данные в базу данных
     // Например: await saveToDatabase(body)
 
     // Логирование для отладки (в продакшене лучше использовать логгер)
-    console.log('Data submitted:', {
+    console.log('📝 Data submitted:', {
       type: body.questionnaireType,
       telegram: {
         id: body.telegram.id,
-        username: body.telegram.username,
+        username: verifiedUsername,
         first_name: body.telegram.first_name,
       },
     })
@@ -154,19 +166,21 @@ export async function POST(request: NextRequest) {
         `✅ Данные проверены через Telegram\n\n` +
         `📋 Тип анкеты: ${body.questionnaireType}\n` +
         `👤 Имя: ${body.telegram.first_name}${body.telegram.last_name ? ' ' + body.telegram.last_name : ''}\n` +
-        `🆔 Username: ${body.telegram.username ? '@' + body.telegram.username : 'не указан'}\n` +
+        `🆔 Username: ${verifiedUsername ? '@' + verifiedUsername : 'не указан'}\n` +
         `🆔 ID: ${body.telegram.id}\n` +
-        `🔗 Ссылка: ${body.telegram.username ? `https://t.me/${body.telegram.username}` : 'недоступна'}`
+        `🔗 Ссылка: ${verifiedUsername ? `https://t.me/${verifiedUsername}` : 'недоступна'}`
 
       // Отправляем в группу напрямую через Telegram API
       // Если группа была преобразована в супергруппу, используем migrate_to_chat_id из ошибки
       let groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID || '-1003533385546'
+      console.log('📤 Отправляю сообщение в группу:', groupChatId)
       let groupSent = false
       let attempts = 0
       const maxAttempts = 2
       
       while (!groupSent && attempts < maxAttempts) {
         try {
+          console.log(`📤 Попытка ${attempts + 1}: отправка в группу ${groupChatId}`)
           const groupResponse = await fetch(telegramApiUrl, {
             method: 'POST',
             headers: {
@@ -179,6 +193,11 @@ export async function POST(request: NextRequest) {
           })
 
           const groupResult = await groupResponse.json()
+          console.log('📤 Результат отправки в группу:', {
+            ok: groupResult.ok,
+            error_code: groupResult.error_code,
+            description: groupResult.description
+          })
           
           if (groupResponse.ok && groupResult.ok) {
             console.log('✅ Сообщение успешно отправлено в группу:', groupChatId)
@@ -208,29 +227,43 @@ export async function POST(request: NextRequest) {
             console.error('❌ Ошибка отправки в группу:', {
               chatId: groupChatId,
               error: groupResult.description || groupResult.error_code,
+              error_code: groupResult.error_code,
               fullResponse: groupResult
             })
-            // Для других ошибок не прерываем выполнение, но логируем
-            break
+            // Для других ошибок возвращаем ошибку
+            return NextResponse.json(
+              {
+                error: `Не удалось отправить сообщение в группу: ${groupResult.description || 'Неизвестная ошибка'}`,
+                details: groupResult
+              },
+              { status: 500 }
+            )
           }
         } catch (error) {
           console.error('❌ Ошибка при отправке в группу:', error)
-          break
+          return NextResponse.json(
+            { error: 'Ошибка при отправке сообщения в группу' },
+            { status: 500 }
+          )
         }
       }
       
       if (!groupSent) {
-        console.error('⚠️ Не удалось отправить сообщение в группу после всех попыток')
-        // Не возвращаем ошибку пользователю, но логируем для отладки
+        console.error('❌ Не удалось отправить сообщение в группу после всех попыток')
+        return NextResponse.json(
+          { error: 'Не удалось отправить сообщение в группу. Попробуйте позже.' },
+          { status: 500 }
+        )
       }
 
       // Отправляем пользователю (только если это реальный Telegram ID)
       const isRealTelegramId = body.telegram.id < 2147483647
       if (isRealTelegramId && body.telegram.id) {
+        console.log('📤 Отправляю сообщение пользователю:', body.telegram.id)
         const userMessage = `✅ Спасибо за авторизацию!\n\n` +
           `Ваши данные успешно получены.\n` +
           `Анкета: ${body.questionnaireType}\n` +
-          `${body.telegram.username ? `Ваш Telegram: @${body.telegram.username}` : ''}`
+          `${verifiedUsername ? `Ваш Telegram: @${verifiedUsername}` : ''}`
         
         try {
           const userResponse = await fetch(telegramApiUrl, {

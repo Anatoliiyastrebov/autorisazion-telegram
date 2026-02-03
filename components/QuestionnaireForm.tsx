@@ -19,9 +19,18 @@ export default function QuestionnaireForm({
   const [error, setError] = useState<string | null>(null)
 
   const handleTelegramAuth = (user: TelegramUser) => {
-    console.log('Telegram auth received:', user)
+    console.log('🟢 handleTelegramAuth called with user:', user)
+    console.log('🟢 User hash:', user.hash ? 'present' : 'missing')
+    
+    if (!user.hash || user.hash.trim() === '') {
+      setError('Ошибка: данные авторизации неполные. Попробуйте авторизоваться еще раз.')
+      console.error('❌ Hash отсутствует в данных пользователя')
+      return
+    }
+    
     setTelegramUser(user)
     // Автоматически отправляем данные после авторизации
+    console.log('🟢 Starting submit process...')
     handleSubmit(user)
   }
 
@@ -41,6 +50,13 @@ export default function QuestionnaireForm({
 
     setIsSubmitting(true)
     setError(null)
+
+    console.log('🟡 Submitting data to API...', {
+      questionnaireType,
+      userId: userToSubmit.id,
+      username: userToSubmit.username,
+      hasHash: !!userToSubmit.hash
+    })
 
     try {
       const response = await fetch('/api/submit', {
@@ -62,18 +78,24 @@ export default function QuestionnaireForm({
         }),
       })
 
+      console.log('🟡 API response status:', response.status)
+
       if (!response.ok) {
         const errorData = await response.json()
+        console.error('❌ API error:', errorData)
         throw new Error(errorData.error || 'Ошибка при отправке данных')
       }
 
       const data = await response.json()
+      console.log('✅ API success:', data)
+      
       router.push(
         `/questionnaire/success?username=${encodeURIComponent(
           userToSubmit.username || ''
         )}&type=${encodeURIComponent(questionnaireType)}`
       )
     } catch (err) {
+      console.error('❌ Submit error:', err)
       setError(err instanceof Error ? err.message : 'Произошла ошибка')
       setIsSubmitting(false)
     }

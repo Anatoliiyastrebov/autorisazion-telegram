@@ -91,7 +91,21 @@ export default function TelegramLogin({
 
     // Устанавливаем глобальный обработчик для Telegram Widget
     window.onTelegramAuth = (user: TelegramUser) => {
-      console.log('Telegram Widget auth received:', user)
+      console.log('🔵 Telegram Widget auth received:', user)
+      console.log('🔵 User data:', {
+        id: user.id,
+        username: user.username,
+        first_name: user.first_name,
+        hash: user.hash ? 'present' : 'missing'
+      })
+      
+      // Проверяем, что hash есть
+      if (!user.hash || user.hash.trim() === '') {
+        console.error('❌ Ошибка: hash отсутствует в данных пользователя')
+        alert('Ошибка авторизации: данные не прошли проверку. Попробуйте еще раз.')
+        return
+      }
+      
       onAuth(user)
     }
 
