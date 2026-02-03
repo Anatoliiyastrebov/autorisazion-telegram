@@ -98,26 +98,21 @@ export default function TelegramLogin({
     // Очищаем контейнер
     containerRef.current.innerHTML = ''
 
-    // Создаем div для виджета с data-атрибутами
-    const widgetDiv = document.createElement('div')
-    widgetDiv.setAttribute('data-telegram-login', botName)
-    widgetDiv.setAttribute('data-size', buttonSize)
-    widgetDiv.setAttribute('data-corner-radius', cornerRadius.toString())
-    if (requestAccess) {
-      widgetDiv.setAttribute('data-request-access', 'write')
-    }
-    widgetDiv.setAttribute('data-userpic', usePic.toString())
-    widgetDiv.setAttribute('data-onauth', 'onTelegramAuth(user)')
-    
-    containerRef.current.appendChild(widgetDiv)
-    console.log('Widget div created with bot:', botName)
+    // Создаем функцию для загрузки виджета
+    const loadWidget = () => {
+      if (!containerRef.current) return
 
-    // Загружаем скрипт виджета
-    const existingScript = document.querySelector('script[src*="telegram-widget.js"]') as HTMLScriptElement
-    
-    if (!existingScript) {
+      // Создаем script тег с data-атрибутами (официальный способ Telegram)
       const script = document.createElement('script')
       script.src = 'https://telegram.org/js/telegram-widget.js?22'
+      script.setAttribute('data-telegram-login', botName)
+      script.setAttribute('data-size', buttonSize)
+      script.setAttribute('data-corner-radius', cornerRadius.toString())
+      if (requestAccess) {
+        script.setAttribute('data-request-access', 'write')
+      }
+      script.setAttribute('data-userpic', usePic.toString())
+      script.setAttribute('data-onauth', 'onTelegramAuth(user)')
       script.async = true
       
       script.onload = () => {
@@ -127,14 +122,16 @@ export default function TelegramLogin({
       script.onerror = () => {
         console.error('❌ Failed to load Telegram widget script')
         if (containerRef.current) {
-          containerRef.current.innerHTML = '<p style="color: red; padding: 1rem;">Ошибка загрузки виджета Telegram. Проверьте настройки бота.</p>'
+          containerRef.current.innerHTML = '<p style="color: red; padding: 1rem;">Ошибка загрузки виджета Telegram. Проверьте настройки бота и домен в BotFather.</p>'
         }
       }
-      
-      document.head.appendChild(script)
-    } else {
-      console.log('✅ Telegram widget script already loaded')
+
+      containerRef.current.appendChild(script)
+      console.log('Widget script added to container with bot:', botName)
     }
+
+    // Загружаем виджет сразу
+    loadWidget()
 
     return () => {
       if (window.onTelegramAuth === onAuth) {
@@ -167,12 +164,27 @@ export default function TelegramLogin({
     <div 
       ref={containerRef} 
       style={{ 
-        minHeight: '40px', 
+        minHeight: '60px', 
         display: 'flex', 
         justifyContent: 'center', 
-        alignItems: 'center' 
+        alignItems: 'center',
+        width: '100%'
       }} 
-    />
+    >
+      {!isWebApp && (
+        <div style={{ 
+          padding: '1rem', 
+          background: '#f8f9fa', 
+          borderRadius: '4px',
+          textAlign: 'center',
+          width: '100%'
+        }}>
+          <p style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: '#666' }}>
+            Загрузка кнопки авторизации...
+          </p>
+        </div>
+      )}
+    </div>
   )
 }
 
