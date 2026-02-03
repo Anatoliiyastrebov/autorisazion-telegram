@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import TelegramLogin, { TelegramUser } from './TelegramLogin'
-import TelegramAuthModal from './TelegramAuthModal'
+import SimpleTelegramAuth, { SimpleTelegramUser } from './SimpleTelegramAuth'
 import { useRouter } from 'next/navigation'
 
 interface QuestionnaireFormProps {
@@ -25,7 +25,8 @@ export default function QuestionnaireForm({
   const router = useRouter()
   const questions = questionnaireQuestions[questionnaireType] || []
   const [answers, setAnswers] = useState<Record<string, string>>({})
-  const [telegramUser, setTelegramUser] = useState<TelegramUser | null>(null)
+  const [telegramUser, setTelegramUser] = useState<TelegramUser | SimpleTelegramUser | null>(null)
+  const [useSimpleAuth, setUseSimpleAuth] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -105,20 +106,19 @@ export default function QuestionnaireForm({
 
   const handleTelegramAuth = (user: TelegramUser) => {
     console.log('🟢 handleTelegramAuth called with user:', user)
-    console.log('🟢 User hash:', user.hash ? 'present' : 'missing')
     
-    if (!user.hash || user.hash.trim() === '') {
-      setError('Ошибка: данные авторизации неполные. Попробуйте авторизоваться еще раз.')
-      console.error('❌ Hash отсутствует в данных пользователя')
-      return
-    }
-    
-    // Сохраняем данные пользователя
+    // Сохраняем данные пользователя (без проверки hash, так как проверки убраны)
     setTelegramUser(user)
-    setError(null) // Очищаем предыдущие ошибки
-    
-    // Показываем успешное сообщение
+    setError(null)
     console.log('✅ Telegram авторизация успешна:', user.first_name, user.username)
+  }
+
+  const handleSimpleAuth = (user: SimpleTelegramUser) => {
+    console.log('🟢 Simple auth called with user:', user)
+    setTelegramUser(user)
+    setError(null)
+    setUseSimpleAuth(false)
+    console.log('✅ Простая авторизация успешна:', user.first_name, user.username)
   }
 
 
@@ -149,14 +149,14 @@ export default function QuestionnaireForm({
           questionnaireType,
           answers: answers || {},
           telegram: {
-            id: telegramUser.id,
+            id: typeof telegramUser.id === 'number' ? telegramUser.id : parseInt(telegramUser.id.replace('temp_', '')) || Date.now(),
             username: telegramUser.username,
             first_name: telegramUser.first_name,
-            last_name: telegramUser.last_name,
-            photo_url: telegramUser.photo_url,
-            auth_date: telegramUser.auth_date || Math.floor(Date.now() / 1000),
-            hash: telegramUser.hash || '',
-            initData: telegramUser.initData || '',
+            last_name: telegramUser.last_name || undefined,
+            photo_url: 'photo_url' in telegramUser ? telegramUser.photo_url : undefined,
+            auth_date: 'auth_date' in telegramUser ? telegramUser.auth_date : Math.floor(Date.now() / 1000),
+            hash: 'hash' in telegramUser ? telegramUser.hash || '' : '',
+            initData: 'initData' in telegramUser ? telegramUser.initData || '' : '',
           },
         }),
       })
@@ -235,6 +235,17 @@ export default function QuestionnaireForm({
                   </button>
                 </div>
               </div>
+            ) : useSimpleAuth ? (
+              <div>
+                <SimpleTelegramAuth onAuth={handleSimpleAuth} />
+                <button
+                  className="button button-secondary"
+                  onClick={() => setUseSimpleAuth(false)}
+                  style={{ width: '100%', marginTop: '1rem' }}
+                >
+                  Вернуться к авторизации через Telegram
+                </button>
+              </div>
             ) : (
               <div>
                 {typeof window !== 'undefined' && window.Telegram?.WebApp ? (
@@ -288,9 +299,16 @@ export default function QuestionnaireForm({
                         usePic={true}
                       />
                     </div>
-                    <p style={{ fontSize: '0.85rem', color: '#999', textAlign: 'center', fontStyle: 'italic' }}>
+                    <p style={{ fontSize: '0.85rem', color: '#999', textAlign: 'center', fontStyle: 'italic', marginBottom: '1rem' }}>
                       💡 Совет: Для автоматической авторизации откройте этот сайт из Telegram через бота
                     </p>
+                    <button
+                      className="button button-secondary"
+                      onClick={() => setUseSimpleAuth(true)}
+                      style={{ width: '100%' }}
+                    >
+                      Или введите данные вручную
+                    </button>
                   </div>
                 )}
               </div>
