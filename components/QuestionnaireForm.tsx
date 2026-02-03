@@ -22,54 +22,65 @@ export default function QuestionnaireForm({
 
   // Проверяем Telegram Web App при загрузке компонента
   useEffect(() => {
-    const checkWebApp = () => {
-      if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-        // Инициализируем Web App
-        window.Telegram.WebApp.ready()
-        window.Telegram.WebApp.expand()
-        
-        // Проверяем наличие данных пользователя
-        const webAppUser = window.Telegram.WebApp.initDataUnsafe?.user
-        const initData = window.Telegram.WebApp.initDataUnsafe
-        const initDataString = window.Telegram.WebApp.initData // Оригинальная строка
-        
-        if (webAppUser && initData?.auth_date && initData?.hash) {
-          console.log('✅ Telegram Web App detected, user data available')
-          
-          const user: TelegramUser = {
-            id: webAppUser.id,
-            first_name: webAppUser.first_name,
-            last_name: webAppUser.last_name,
-            username: webAppUser.username,
-            photo_url: webAppUser.photo_url,
-            auth_date: initData.auth_date,
-            hash: initData.hash,
-            initData: initDataString, // Сохраняем оригинальную строку для проверки
-          }
-          
-          // Автоматически показываем модальное окно с данными для согласия
-          setTelegramUser(user)
-          setShowModal(true)
-        } else {
-          console.log('ℹ️ Telegram Web App detected but user data not available yet')
-        }
-      } else {
-        console.log('ℹ️ Not opened from Telegram, will use Login Widget')
+    let isInitialized = false
+    
+    const initializeWebApp = () => {
+      // Предотвращаем множественную инициализацию
+      if (isInitialized || typeof window === 'undefined' || !window.Telegram?.WebApp) {
+        return
       }
+      
+      const webApp = window.Telegram.WebApp
+      
+      // Инициализируем Web App только один раз
+      if (!isInitialized) {
+        webApp.ready()
+        webApp.expand()
+        isInitialized = true
+      }
+      
+      // Проверяем наличие данных пользователя
+      const webAppUser = webApp.initDataUnsafe?.user
+      const initData = webApp.initDataUnsafe
+      const initDataString = webApp.initData // Оригинальная строка
+      
+      if (webAppUser && initData?.auth_date && initData?.hash) {
+        console.log('✅ Telegram Web App: user data loaded')
+        
+        const user: TelegramUser = {
+          id: webAppUser.id,
+          first_name: webAppUser.first_name,
+          last_name: webAppUser.last_name,
+          username: webAppUser.username,
+          photo_url: webAppUser.photo_url,
+          auth_date: initData.auth_date,
+          hash: initData.hash,
+          initData: initDataString, // Сохраняем оригинальную строку для проверки
+        }
+        
+        // Автоматически показываем модальное окно с данными для согласия
+        setTelegramUser(user)
+        setShowModal(true)
+        return true // Данные загружены
+      }
+      
+      return false // Данные еще не загружены
     }
 
     // Проверяем сразу
-    checkWebApp()
+    if (initializeWebApp()) {
+      return // Данные уже загружены, выходим
+    }
 
-    // Также проверяем через небольшую задержку на случай, если скрипт загружается
-    const timer = setTimeout(checkWebApp, 300)
-    
-    // Проверяем еще раз через секунду (на случай медленной загрузки)
-    const timer2 = setTimeout(checkWebApp, 1000)
+    // Если данные не загружены, проверяем через небольшую задержку
+    const timer = setTimeout(() => {
+      if (!initializeWebApp()) {
+        console.log('ℹ️ Telegram Web App detected but user data not available')
+      }
+    }, 500)
 
     return () => {
       clearTimeout(timer)
-      clearTimeout(timer2)
     }
   }, [])
 

@@ -14,7 +14,15 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <head>
-        <script src="https://telegram.org/js/telegram-web-app.js" async />
+        <script 
+          src="https://telegram.org/js/telegram-web-app.js" 
+          async 
+          onLoad={() => {
+            if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+              // Инициализация происходит в компонентах
+            }
+          }}
+        />
       </head>
       <body>{children}</body>
     </html>
