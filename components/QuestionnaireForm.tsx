@@ -19,6 +19,7 @@ export default function QuestionnaireForm({
   const [error, setError] = useState<string | null>(null)
 
   const handleTelegramAuth = (user: TelegramUser) => {
+    console.log('Telegram auth received:', user)
     setTelegramUser(user)
     // Автоматически отправляем данные после авторизации
     handleSubmit(user)
@@ -116,7 +117,7 @@ export default function QuestionnaireForm({
                 onAuth={handleTelegramAuth}
                 buttonSize="large"
                 cornerRadius={4}
-                requestAccess={true}
+                requestAccess={false}
                 usePic={true}
               />
               <p style={{ marginTop: '1rem', fontSize: '0.9rem', color: '#666' }}>

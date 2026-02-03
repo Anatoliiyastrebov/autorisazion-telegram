@@ -99,6 +99,63 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Отправляем сообщение боту с данными пользователя
+    if (botToken && body.telegram.id) {
+      try {
+        const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`
+        
+        // Формируем сообщение для администратора
+        const adminMessage = `🔔 Новая авторизация через анкету!\n\n` +
+          `📋 Тип анкеты: ${body.questionnaireType}\n` +
+          `👤 Имя: ${body.telegram.first_name}${body.telegram.last_name ? ' ' + body.telegram.last_name : ''}\n` +
+          `🆔 Username: ${body.telegram.username ? '@' + body.telegram.username : 'не указан'}\n` +
+          `🆔 ID: ${body.telegram.id}\n` +
+          `🔗 Ссылка: ${body.telegram.username ? `https://t.me/${body.telegram.username}` : 'недоступна'}`
+
+        // Отправляем сообщение пользователю (подтверждение)
+        const userMessage = `✅ Спасибо за авторизацию!\n\n` +
+          `Ваши данные успешно получены.\n` +
+          `Анкета: ${body.questionnaireType}\n` +
+          `${body.telegram.username ? `Ваш Telegram: @${body.telegram.username}` : ''}`
+
+        // Отправляем пользователю подтверждение
+        await fetch(telegramApiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            chat_id: body.telegram.id,
+            text: userMessage,
+          }),
+        })
+
+        // Отправляем администратору (если указан ADMIN_CHAT_ID в переменных окружения)
+        const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID
+        if (adminChatId) {
+          await fetch(telegramApiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              chat_id: adminChatId,
+              text: adminMessage,
+            }),
+          })
+          console.log('Message sent to admin via Telegram Bot API')
+        } else {
+          // Если ADMIN_CHAT_ID не указан, логируем сообщение
+          console.log('Admin message (ADMIN_CHAT_ID not set):', adminMessage)
+        }
+
+        console.log('Message sent to user via Telegram Bot API')
+      } catch (error) {
+        console.error('Error sending message to Telegram:', error)
+        // Не прерываем выполнение, если отправка сообщения не удалась
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Анкета успешно отправлена',
