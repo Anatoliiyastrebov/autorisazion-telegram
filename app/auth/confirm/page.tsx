@@ -144,10 +144,11 @@ function AuthConfirmContent() {
         ? localStorage.getItem('return_url') 
         : null
       
-      // Очищаем return_url из localStorage перед использованием
-      if (returnUrl && typeof window !== 'undefined') {
-        localStorage.removeItem('return_url')
-      }
+      console.log('🔍 Проверка return_url в localStorage:', returnUrl)
+      console.log('🔍 Все данные в localStorage:', {
+        return_url: returnUrl,
+        telegram_user: localStorage.getItem('telegram_user') ? 'есть' : 'нет'
+      })
       
       // Если есть сохраненный URL, возвращаемся на него, иначе на главную
       // Убираем параметр auth=confirmed из URL, если он там есть, и добавляем заново
@@ -161,6 +162,16 @@ function AuthConfirmContent() {
       console.log('🔗 Исходный URL для возврата:', returnUrl || 'главная страница')
       console.log('🔗 Очищенный URL:', cleanReturnUrl)
       console.log('🔗 Полный URL редиректа:', redirectUrl)
+      
+      // Очищаем return_url из localStorage ПОСЛЕ использования (чтобы не потерять данные)
+      // Но только если мы действительно используем его
+      if (returnUrl && typeof window !== 'undefined') {
+        // Не удаляем сразу, дадим время на редирект
+        setTimeout(() => {
+          localStorage.removeItem('return_url')
+          console.log('🗑️ return_url удален из localStorage')
+        }, 1000)
+      }
       
       // Если открыто в Telegram Web App
       if (typeof window !== 'undefined' && window.Telegram?.WebApp) {

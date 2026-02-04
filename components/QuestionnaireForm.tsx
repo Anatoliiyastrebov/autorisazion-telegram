@@ -119,14 +119,55 @@ function QuestionnaireFormContent({
     const authConfirmed = searchParams.get('auth')
     if (authConfirmed === 'confirmed') {
       console.log('✅ Авторизация подтверждена, загружаем данные пользователя...')
-      // Даем задержку для сохранения данных из Web App
-      setTimeout(() => {
-        loadUserData()
-        // Очищаем параметр из URL
-        const newUrl = window.location.pathname
-        window.history.replaceState({}, '', newUrl)
-        console.log('✅ URL очищен, остаемся на странице анкеты')
-      }, 300)
+      console.log('🔍 Текущий URL:', window.location.href)
+      
+      // Даем задержку для сохранения данных из Web App и загружаем данные несколько раз
+      const loadWithRetry = (attempt = 1, maxAttempts = 5) => {
+        console.log(`🔄 Попытка ${attempt}/${maxAttempts} загрузки данных пользователя...`)
+        const savedUser = localStorage.getItem('telegram_user')
+        
+        if (savedUser) {
+          try {
+            const user = JSON.parse(savedUser)
+            if (user.id && user.first_name) {
+              console.log('✅ Данные пользователя найдены:', user)
+              setTelegramUser(user)
+              
+              // Автоматически заполняем данные
+              setAnswers(prev => {
+                const newAnswers = { ...prev }
+                if (user.first_name && !newAnswers.first_name) {
+                  newAnswers.first_name = user.first_name
+                  console.log('✅ Автозаполнение: имя =', user.first_name)
+                }
+                if (user.last_name && !newAnswers.last_name) {
+                  newAnswers.last_name = user.last_name
+                  console.log('✅ Автозаполнение: фамилия =', user.last_name)
+                }
+                return newAnswers
+              })
+              
+              // Очищаем параметр из URL
+              const newUrl = window.location.pathname
+              window.history.replaceState({}, '', newUrl)
+              console.log('✅ URL очищен, остаемся на странице анкеты:', newUrl)
+              return true
+            }
+          } catch (e) {
+            console.error('❌ Ошибка при парсинге данных:', e)
+          }
+        }
+        
+        if (attempt < maxAttempts) {
+          setTimeout(() => loadWithRetry(attempt + 1, maxAttempts), 300)
+        } else {
+          console.warn('⚠️ Не удалось загрузить данные пользователя после всех попыток')
+        }
+        return false
+      }
+      
+      // Начинаем загрузку с задержкой
+      setTimeout(() => loadWithRetry(), 200)
     } else {
       loadUserData()
     }
@@ -379,9 +420,25 @@ function QuestionnaireFormContent({
                         .replace(/^$/, '')
                       
                       const currentUrl = currentPath + (currentSearch || '')
+                      
+                      // Сохраняем URL
                       localStorage.setItem('return_url', currentUrl)
+                      
+                      // Проверяем, что сохранилось
+                      const saved = localStorage.getItem('return_url')
                       console.log('💾 Сохранен URL для возврата:', currentUrl)
+                      console.log('💾 Проверка сохранения:', saved === currentUrl ? '✅ OK' : '❌ ОШИБКА')
                       console.log('💾 Полный URL страницы:', window.location.href)
+                      console.log('💾 Все данные в localStorage:', {
+                        return_url: localStorage.getItem('return_url'),
+                        telegram_user: localStorage.getItem('telegram_user') ? 'есть' : 'нет'
+                      })
+                      
+                      if (saved !== currentUrl) {
+                        console.error('❌ ОШИБКА: URL не сохранился правильно!')
+                        alert('Ошибка сохранения URL. Попробуйте еще раз.')
+                        return
+                      }
                     }
                     
                     // Открываем бота через Menu Button (если доступен) или через ссылку
@@ -389,10 +446,12 @@ function QuestionnaireFormContent({
                       // Если открыто в Web App, используем Menu Button
                       const webApp = window.Telegram.WebApp
                       const botUrl = `https://t.me/${botName}`
+                      console.log('🔗 Открываем бота через Web App:', botUrl)
                       webApp.openTelegramLink(botUrl)
                     } else {
                       // Иначе открываем в новой вкладке
                       const botUrl = `https://t.me/${botName}`
+                      console.log('🔗 Открываем бота в новой вкладке:', botUrl)
                       window.open(botUrl, '_blank')
                       alert('Откройте бота и нажмите кнопку "Авторизоваться" внизу экрана, затем вернитесь на эту страницу.')
                     }
