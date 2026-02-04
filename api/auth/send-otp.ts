@@ -67,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let otpSent = false;
     
     if (contactType === 'telegram' && telegram) {
-      const BOT_TOKEN = process.env.VITE_TELEGRAM_BOT_TOKEN;
+      const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
       
       if (BOT_TOKEN) {
         try {
@@ -214,7 +214,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           console.error('Error sending OTP via Telegram:', telegramError);
         }
       } else {
-        console.warn('VITE_TELEGRAM_BOT_TOKEN not set - OTP not sent via Telegram');
+        console.warn('TELEGRAM_BOT_TOKEN not set - OTP not sent via Telegram');
       }
     }
     

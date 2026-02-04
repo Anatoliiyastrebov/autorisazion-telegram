@@ -43,8 +43,10 @@ npm install
 Для локальной разработки создайте файл `.env` в корне проекта:
 
 ```env
-VITE_TELEGRAM_BOT_TOKEN=your_bot_token_here
-VITE_TELEGRAM_CHAT_ID=your_chat_id_here
+NEXT_PUBLIC_TELEGRAM_BOT_NAME=telega_automat_bot
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_GROUP_CHAT_ID=-5074397630
+TELEGRAM_ADMIN_CHAT_ID=your_chat_id_here
 ```
 
 **Важно:** 
@@ -57,7 +59,7 @@ VITE_TELEGRAM_CHAT_ID=your_chat_id_here
 npm run dev
 ```
 
-Приложение будет доступно по адресу `http://localhost:5173`
+Приложение будет доступно по адресу `http://localhost:3000`
 
 ## 📦 Сборка для продакшена
 
@@ -65,7 +67,7 @@ npm run dev
 npm run build
 ```
 
-Собранные файлы будут в папке `dist/`
+Собранные файлы будут в папке `.next/`
 
 ## 🌐 Деплой
 
@@ -99,11 +101,10 @@ npm run build
 2. **Настройка переменных окружения:**
    - После первого деплоя, перейдите в **Project Settings** → **Environment Variables**
    - Добавьте переменные (см. подробный список в `DEPLOYMENT_CHECKLIST.md`):
-     - **VITE_TELEGRAM_BOT_TOKEN** - токен Telegram бота
-     - **VITE_TELEGRAM_CHAT_ID** - ID чата для отправки анкет
-     - **SUPABASE_URL** - URL проекта Supabase
-     - **SUPABASE_SERVICE_ROLE_KEY** - service_role key из Supabase
-     - **ENCRYPTION_KEY** - ключ шифрования (32 байта hex)
+     - **NEXT_PUBLIC_TELEGRAM_BOT_NAME** - имя Telegram бота
+     - **TELEGRAM_BOT_TOKEN** - токен Telegram бота
+     - **TELEGRAM_GROUP_CHAT_ID** - ID группы для отправки анкет (опционально)
+     - **TELEGRAM_ADMIN_CHAT_ID** - ID администратора для уведомлений (опционально)
    - Выберите окружения (Production, Preview, Development)
    - Нажмите **"Save"** для каждой переменной
 
