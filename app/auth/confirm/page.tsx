@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+/// <reference path="../../telegram-webapp.d.ts" />
+
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function AuthConfirmPage() {
+function AuthConfirmContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isAuthorized, setIsAuthorized] = useState(false)
@@ -51,7 +53,9 @@ export default function AuthConfirmPage() {
       window.open(siteUrl, '_blank')
       // Закрываем Web App через небольшую задержку
       setTimeout(() => {
-        window.Telegram.WebApp.close()
+        if (window.Telegram?.WebApp?.close) {
+          window.Telegram.WebApp.close()
+        }
       }, 500)
     } else {
       // Если не в Web App, просто перенаправляем
@@ -121,6 +125,23 @@ export default function AuthConfirmPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AuthConfirmPage() {
+  return (
+    <Suspense fallback={
+      <div className="container">
+        <div className="card">
+          <h1>Авторизация</h1>
+          <p style={{ color: '#666', marginTop: '1rem' }}>
+            Загрузка...
+          </p>
+        </div>
+      </div>
+    }>
+      <AuthConfirmContent />
+    </Suspense>
   )
 }
 

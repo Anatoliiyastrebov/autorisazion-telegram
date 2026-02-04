@@ -1,41 +1,12 @@
 'use client'
 
+/// <reference path="../telegram-webapp.d.ts" />
+
 import { useEffect, useRef, useState } from 'react'
+import type { TelegramUser } from '../telegram-webapp'
 
-declare global {
-  interface Window {
-    onTelegramAuth?: (user: TelegramUser) => void
-    Telegram?: {
-      WebApp?: {
-        initData: string
-        initDataUnsafe: {
-          user?: {
-            id: number
-            first_name: string
-            last_name?: string
-            username?: string
-            photo_url?: string
-          }
-          auth_date: number
-          hash: string
-        }
-        ready: () => void
-        expand: () => void
-      }
-    }
-  }
-}
-
-export interface TelegramUser {
-  id: number
-  first_name: string
-  last_name?: string
-  username?: string
-  photo_url?: string
-  auth_date: number
-  hash: string
-  initData?: string // Оригинальная строка initData для Web App
-}
+// Re-export for backward compatibility
+export type { TelegramUser }
 
 interface TelegramLoginProps {
   botName: string
