@@ -4,12 +4,14 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import type { TelegramUser } from '@/components/TelegramLogin'
 
 function AuthConfirmContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isAuthorized, setIsAuthorized] = useState(false)
-  const [userData, setUserData] = useState<any>(null)
+  const [userData, setUserData] = useState<TelegramUser | null>(null)
+  const [isConfirming, setIsConfirming] = useState(false)
 
   useEffect(() => {
     // Проверяем, открыто ли из Telegram Web App
@@ -18,11 +20,17 @@ function AuthConfirmContent() {
       webApp.ready()
       webApp.expand()
 
+      // Получаем параметры из URL
+      const sessionId = searchParams.get('session')
+      const token = searchParams.get('token')
+      const userId = searchParams.get('user_id')
+
+      // Приоритет 1: Данные из Web App (если доступны)
       const webAppUser = webApp.initDataUnsafe?.user
       const initData = webApp.initDataUnsafe
 
       if (webAppUser && initData?.auth_date && initData?.hash) {
-        const user = {
+        const user: TelegramUser = {
           id: webAppUser.id,
           first_name: webAppUser.first_name,
           last_name: webAppUser.last_name,
@@ -35,40 +43,94 @@ function AuthConfirmContent() {
 
         setUserData(user)
         setIsAuthorized(true)
-
-        // Сохраняем данные в localStorage для использования на сайте
-        localStorage.setItem('telegram_user', JSON.stringify(user))
+      } 
+      // Приоритет 2: Данные из параметров URL (от бота)
+      else if (token && userId) {
+        // Получаем данные пользователя через API
+        fetchUserData(token, userId)
+      } else {
+        console.warn('⚠️ Нет данных для авторизации')
       }
     }
-  }, [])
+  }, [searchParams])
 
-  const handleConfirm = () => {
-    // Получаем тип анкеты из URL или используем по умолчанию
-    const questionnaireType = searchParams.get('type') || 'women'
-    
-    // Если открыто в Telegram Web App, открываем сайт в браузере
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      const siteUrl = `${window.location.origin}/questionnaire/${questionnaireType}?auth=confirmed`
-      // Открываем сайт в браузере
-      window.open(siteUrl, '_blank')
-      // Закрываем Web App через небольшую задержку
-      setTimeout(() => {
-        if (window.Telegram?.WebApp?.close) {
-          window.Telegram.WebApp.close()
-        }
-      }, 500)
-    } else {
-      // Если не в Web App, просто перенаправляем
-      router.push(`/questionnaire/${questionnaireType}?auth=confirmed`)
+  const fetchUserData = async (token: string, userId: string) => {
+    try {
+      const response = await fetch(`/api/auth/get-user?token=${token}&user_id=${userId}`)
+      if (!response.ok) {
+        throw new Error('Failed to get user data')
+      }
+
+      const userData = await response.json()
+
+      const user: TelegramUser = {
+        id: userData.id,
+        first_name: userData.first_name,
+        last_name: userData.last_name,
+        username: userData.username,
+        photo_url: userData.photo_url,
+        auth_date: Math.floor(Date.now() / 1000),
+        hash: '',
+        initData: '',
+      }
+
+      setUserData(user)
+      setIsAuthorized(true)
+    } catch (error) {
+      console.error('❌ Ошибка при получении данных пользователя:', error)
     }
   }
 
-  if (!isAuthorized) {
+  const handleConfirm = async () => {
+    if (!userData) return
+
+    setIsConfirming(true)
+
+    try {
+      // Сохраняем данные в localStorage
+      localStorage.setItem('telegram_user', JSON.stringify(userData))
+
+      // Если открыто в Telegram Web App
+      if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+        const webApp = window.Telegram.WebApp
+        
+        // Показываем уведомление об успехе
+        webApp.showAlert('✅ Авторизация успешна! Вы будете перенаправлены на сайт.', () => {
+          // Открываем сайт в браузере
+          const siteUrl = `${window.location.origin}/?auth=confirmed`
+          webApp.openLink(siteUrl, { try_instant_view: false })
+          
+          // Закрываем Web App через небольшую задержку
+          setTimeout(() => {
+            if (webApp.close) {
+              webApp.close()
+            }
+          }, 1000)
+        })
+      } else {
+        // Если не в Web App, просто перенаправляем
+        router.push('/?auth=confirmed')
+      }
+    } catch (error) {
+      console.error('❌ Ошибка при подтверждении:', error)
+      setIsConfirming(false)
+    }
+  }
+
+  const handleCancel = () => {
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+      window.Telegram.WebApp.close()
+    } else {
+      router.push('/')
+    }
+  }
+
+  if (!isAuthorized || !userData) {
     return (
       <div className="container">
         <div className="card">
           <h1>Авторизация</h1>
-          <p style={{ color: '#666', marginTop: '1rem' }}>
+          <p style={{ color: '#666', marginTop: '1rem', textAlign: 'center' }}>
             Загрузка данных из Telegram...
           </p>
         </div>
@@ -79,48 +141,100 @@ function AuthConfirmContent() {
   return (
     <div className="container">
       <div className="card">
-        <h1>Подтверждение авторизации</h1>
+        <h1 style={{ textAlign: 'center', marginBottom: '2rem' }}>🔐 Подтверждение авторизации</h1>
         
         <div style={{ 
-          padding: '1.5rem', 
-          background: '#e7f3ff', 
-          borderRadius: '8px', 
-          border: '1px solid #0088cc',
-          marginTop: '2rem'
+          padding: '2rem', 
+          background: '#f8f9fa', 
+          borderRadius: '12px', 
+          border: '2px solid #0088cc',
+          marginBottom: '2rem'
         }}>
-          <p style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}>
-            <strong>Данные из Telegram:</strong>
+          <p style={{ 
+            marginBottom: '1.5rem', 
+            fontSize: '1.1rem', 
+            textAlign: 'center',
+            fontWeight: 500,
+            color: '#333'
+          }}>
+            Вы хотите авторизоваться на сайте с данными:
           </p>
-          <p style={{ marginBottom: '0.5rem' }}>
-            <strong>Имя:</strong> {userData.first_name}
-            {userData.last_name && ` ${userData.last_name}`}
-          </p>
-          {userData.username && (
-            <p style={{ marginBottom: '0.5rem' }}>
-              <strong>Telegram:</strong>{' '}
-              <a
-                href={`https://t.me/${userData.username}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="telegram-link"
-              >
-                @{userData.username}
-              </a>
-            </p>
-          )}
+          
+          <div style={{
+            padding: '1.5rem',
+            background: '#fff',
+            borderRadius: '8px',
+            border: '1px solid #e0e0e0'
+          }}>
+            <div style={{ marginBottom: '1rem' }}>
+              <strong style={{ color: '#666', fontSize: '0.9rem' }}>Имя:</strong>
+              <p style={{ margin: '0.5rem 0 0 0', fontSize: '1.2rem', fontWeight: 500 }}>
+                {userData.first_name}
+                {userData.last_name && ` ${userData.last_name}`}
+              </p>
+            </div>
+            
+            {userData.username && (
+              <div style={{ marginBottom: '1rem' }}>
+                <strong style={{ color: '#666', fontSize: '0.9rem' }}>Telegram:</strong>
+                <p style={{ margin: '0.5rem 0 0 0', fontSize: '1.1rem' }}>
+                  <a
+                    href={`https://t.me/${userData.username}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ 
+                      color: '#0088cc', 
+                      textDecoration: 'none',
+                      fontWeight: 500
+                    }}
+                  >
+                    @{userData.username}
+                  </a>
+                </p>
+              </div>
+            )}
+            
+            <div>
+              <strong style={{ color: '#666', fontSize: '0.9rem' }}>ID:</strong>
+              <p style={{ margin: '0.5rem 0 0 0', fontSize: '1rem', color: '#999' }}>
+                {userData.id}
+              </p>
+            </div>
+          </div>
         </div>
 
-        <p style={{ marginTop: '2rem', color: '#666', textAlign: 'center' }}>
-          Нажмите кнопку ниже, чтобы вернуться на сайт и заполнить анкету.
-        </p>
-
-        <div style={{ marginTop: '2rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <button
             className="button"
             onClick={handleConfirm}
-            style={{ width: '100%' }}
+            disabled={isConfirming}
+            style={{ 
+              width: '100%',
+              padding: '1rem',
+              fontSize: '1.1rem',
+              fontWeight: 500,
+              background: isConfirming ? '#ccc' : '#0088cc',
+              cursor: isConfirming ? 'not-allowed' : 'pointer'
+            }}
           >
-            Подтвердить и вернуться на сайт
+            {isConfirming ? '⏳ Подтверждение...' : '✅ Подтвердить авторизацию'}
+          </button>
+          
+          <button
+            onClick={handleCancel}
+            disabled={isConfirming}
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              fontSize: '1rem',
+              background: 'transparent',
+              color: '#666',
+              border: '1px solid #ddd',
+              borderRadius: '8px',
+              cursor: isConfirming ? 'not-allowed' : 'pointer'
+            }}
+          >
+            Отмена
           </button>
         </div>
       </div>

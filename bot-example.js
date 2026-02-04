@@ -1,4 +1,4 @@
-// Пример кода для Telegram бота
+// Пример кода для Telegram бота @telega_automat_bot
 // Установите зависимости: npm install node-telegram-bot-api axios
 
 const TelegramBot = require('node-telegram-bot-api')
@@ -36,13 +36,15 @@ bot.onText(/\/start auth_(.+)/, async (msg, match) => {
       }
     })
     
-    // Отправляем сообщение с кнопкой подтверждения
+    // Отправляем сообщение с кнопкой Web App для подтверждения авторизации
     bot.sendMessage(chatId, '🔐 Для авторизации на сайте нажмите кнопку ниже:', {
       reply_markup: {
         inline_keyboard: [[
           {
-            text: '✅ Подтвердить авторизацию',
-            callback_data: `confirm_auth_${sessionId}`
+            text: '✅ Авторизоваться',
+            web_app: { 
+              url: `${SITE_URL}/auth/confirm?session=${sessionId}&token=${token}&user_id=${chatId}` 
+            }
           }
         ]]
       }
@@ -50,46 +52,6 @@ bot.onText(/\/start auth_(.+)/, async (msg, match) => {
   } catch (error) {
     console.error('❌ Ошибка при генерации токена:', error.response?.data || error.message)
     bot.sendMessage(chatId, '❌ Ошибка при создании токена авторизации. Попробуйте еще раз.')
-  }
-})
-
-// Обработчик callback кнопки
-bot.on('callback_query', async (query) => {
-  const chatId = query.message.chat.id
-  const data = query.data
-  
-  if (data.startsWith('confirm_auth_')) {
-    const sessionId = data.replace('confirm_auth_', '')
-    const sessionData = sessionTokens[sessionId]
-    
-    if (!sessionData) {
-      bot.answerCallbackQuery(query.id, {
-        text: '⏰ Сессия истекла. Начните авторизацию заново.',
-        show_alert: true
-      })
-      return
-    }
-    
-    // Показываем диалог подтверждения
-    bot.answerCallbackQuery(query.id, {
-      text: 'Вы уверены, что хотите авторизоваться на сайте?',
-      show_alert: true
-    })
-    
-    // Отправляем кнопку с прямой ссылкой для завершения авторизации
-    bot.sendMessage(chatId, '🔐 Нажмите кнопку ниже, чтобы завершить авторизацию и вернуться на сайт:', {
-      reply_markup: {
-        inline_keyboard: [[
-          {
-            text: '🔐 Завершить авторизацию',
-            url: `${SITE_URL}/api/auth/callback?token=${sessionData.token}&user_id=${sessionData.userId}`
-          }
-        ]]
-      }
-    })
-    
-    // Удаляем токен из сессии
-    delete sessionTokens[sessionId]
   }
 })
 
@@ -111,4 +73,3 @@ bot.on('polling_error', (error) => {
 })
 
 console.log('✅ Бот запущен и готов к работе!')
-

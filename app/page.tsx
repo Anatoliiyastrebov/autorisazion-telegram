@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import AuthPage from '@/components/AuthPage'
 import type { TelegramUser } from '@/components/TelegramLogin'
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [telegramUser, setTelegramUser] = useState<TelegramUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -25,9 +26,17 @@ export default function Home() {
           localStorage.removeItem('telegram_user')
         }
       }
+      
+      // Проверяем параметр авторизации из URL
+      const authConfirmed = searchParams.get('auth')
+      if (authConfirmed === 'confirmed' && savedUser) {
+        // Очищаем параметр из URL
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+      
       setIsLoading(false)
     }
-  }, [])
+  }, [searchParams])
 
   const handleAuth = (user: TelegramUser) => {
     console.log('✅ Авторизация успешна, переходим к выбору анкет')
@@ -107,6 +116,20 @@ export default function Home() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="container">
+        <div className="card">
+          <h1>Загрузка...</h1>
+        </div>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   )
 }
 
