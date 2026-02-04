@@ -75,6 +75,18 @@ function AuthConfirmContent() {
           initData: webApp.initData,
         }
 
+        // СРАЗУ сохраняем данные в localStorage при обнаружении
+        console.log('💾 Сохранение данных пользователя в localStorage (при обнаружении Web App)...')
+        localStorage.setItem('telegram_user', JSON.stringify(user))
+        
+        // Проверяем сохранение
+        const saved = localStorage.getItem('telegram_user')
+        if (saved) {
+          console.log('✅ Данные успешно сохранены в localStorage при обнаружении Web App')
+        } else {
+          console.error('❌ ОШИБКА: Не удалось сохранить данные в localStorage')
+        }
+
         setUserData(user)
         setIsAuthorized(true)
       } 
@@ -128,16 +140,35 @@ function AuthConfirmContent() {
     setIsConfirming(true)
 
     try {
-      // Сохраняем данные в localStorage
+      // Сохраняем данные в localStorage (если еще не сохранены)
       console.log('💾 Сохранение данных пользователя в localStorage:', userData)
-      localStorage.setItem('telegram_user', JSON.stringify(userData))
+      const existingData = localStorage.getItem('telegram_user')
+      
+      if (!existingData) {
+        localStorage.setItem('telegram_user', JSON.stringify(userData))
+        console.log('💾 Данные сохранены в localStorage')
+      } else {
+        console.log('ℹ️ Данные уже есть в localStorage, обновляем...')
+        localStorage.setItem('telegram_user', JSON.stringify(userData))
+      }
       
       // Проверяем, что данные сохранились
       const saved = localStorage.getItem('telegram_user')
       if (!saved) {
         throw new Error('Не удалось сохранить данные')
       }
-      console.log('✅ Данные успешно сохранены в localStorage')
+      
+      // Парсим сохраненные данные для проверки
+      try {
+        const parsed = JSON.parse(saved)
+        console.log('✅ Данные успешно сохранены в localStorage:', {
+          id: parsed.id,
+          first_name: parsed.first_name,
+          username: parsed.username
+        })
+      } catch (e) {
+        console.error('❌ Ошибка при проверке сохраненных данных:', e)
+      }
 
       // Получаем URL для возврата из localStorage
       const returnUrl = typeof window !== 'undefined' 
@@ -179,22 +210,42 @@ function AuthConfirmContent() {
         
         // Показываем уведомление об успехе
         webApp.showAlert('✅ Авторизация успешна! Вы будете перенаправлены обратно в анкету.', () => {
+          // Дополнительная проверка сохранения данных перед редиректом
+          const finalCheck = localStorage.getItem('telegram_user')
+          if (!finalCheck) {
+            console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Данные не найдены в localStorage перед редиректом!')
+            // Пытаемся сохранить еще раз
+            localStorage.setItem('telegram_user', JSON.stringify(userData))
+            console.log('💾 Попытка повторного сохранения данных...')
+          } else {
+            console.log('✅ Финальная проверка: данные в localStorage присутствуют')
+          }
+          
           // Открываем сайт в браузере с параметром auth=confirmed
           const siteUrl = `${window.location.origin}${redirectUrl}`
           console.log('🔗 Открываем сайт:', siteUrl)
+          console.log('🔗 Данные для передачи:', {
+            return_url: returnUrl,
+            telegram_user_saved: !!localStorage.getItem('telegram_user')
+          })
+          
           webApp.openLink(siteUrl, { try_instant_view: false })
           
-          // Очищаем сохраненный URL
-          if (returnUrl) {
-            localStorage.removeItem('return_url')
-          }
+          // НЕ удаляем return_url сразу - дадим время на редирект
+          // Удалим его через задержку
+          setTimeout(() => {
+            if (returnUrl) {
+              localStorage.removeItem('return_url')
+              console.log('🗑️ return_url удален из localStorage')
+            }
+          }, 2000)
           
           // Закрываем Web App через небольшую задержку
           setTimeout(() => {
             if (webApp.close) {
               webApp.close()
             }
-          }, 1000)
+          }, 1500)
         })
       } else {
         // Если не в Web App, просто перенаправляем

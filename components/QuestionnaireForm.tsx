@@ -166,18 +166,36 @@ function QuestionnaireFormContent({
         return false
       }
       
-      // Начинаем загрузку с задержкой
-      setTimeout(() => loadWithRetry(), 200)
+      // Начинаем загрузку с задержкой (увеличена для надежности)
+      setTimeout(() => {
+        console.log('🔄 Начинаем загрузку данных пользователя...')
+        console.log('🔍 Проверка localStorage:', {
+          telegram_user: localStorage.getItem('telegram_user') ? 'есть' : 'нет',
+          return_url: localStorage.getItem('return_url') || 'нет'
+        })
+        loadWithRetry()
+      }, 500) // Увеличена задержка до 500мс
     } else {
       loadUserData()
     }
   }, [searchParams])
 
   const loadUserData = () => {
+    console.log('🔍 Загрузка данных пользователя из localStorage...')
     const savedUser = localStorage.getItem('telegram_user')
+    
     if (savedUser) {
       try {
         const user = JSON.parse(savedUser)
+        console.log('🔍 Распарсенные данные пользователя:', {
+          id: user.id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          username: user.username,
+          hasId: !!user.id,
+          hasFirstName: !!user.first_name
+        })
+        
         if (user.id && user.first_name) {
           console.log('✅ Данные пользователя загружены из localStorage:', user)
           setTelegramUser(user)
@@ -197,13 +215,16 @@ function QuestionnaireFormContent({
           })
         } else {
           console.warn('⚠️ Данные пользователя неполные:', user)
+          console.warn('⚠️ id:', user.id, 'first_name:', user.first_name)
         }
       } catch (e) {
-        console.error('❌ Ошибка при загрузке данных пользователя:', e)
+        console.error('❌ Ошибка при парсинге данных пользователя:', e)
+        console.error('❌ Сырые данные:', savedUser)
         localStorage.removeItem('telegram_user')
       }
     } else {
       console.log('ℹ️ Данные пользователя не найдены в localStorage')
+      console.log('🔍 Все ключи в localStorage:', Object.keys(localStorage))
     }
   }
 
