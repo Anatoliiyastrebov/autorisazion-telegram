@@ -371,23 +371,28 @@ function QuestionnaireFormContent({
                   onClick={() => {
                     // Сохраняем текущий URL анкеты для возврата после авторизации
                     if (typeof window !== 'undefined') {
-                      const currentUrl = window.location.pathname + window.location.search
+                      // Получаем текущий URL без параметра auth=confirmed (если он есть)
+                      const currentPath = window.location.pathname
+                      const currentSearch = window.location.search
+                        .replace(/[?&]auth=confirmed/g, '')
+                        .replace(/^&/, '?')
+                        .replace(/^$/, '')
+                      
+                      const currentUrl = currentPath + (currentSearch || '')
                       localStorage.setItem('return_url', currentUrl)
                       console.log('💾 Сохранен URL для возврата:', currentUrl)
+                      console.log('💾 Полный URL страницы:', window.location.href)
                     }
                     
                     // Открываем бота через Menu Button (если доступен) или через ссылку
                     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
                       // Если открыто в Web App, используем Menu Button
                       const webApp = window.Telegram.WebApp
-                      // Передаем return_url как параметр
-                      const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
-                      const botUrl = `https://t.me/${botName}?start=auth_${Date.now()}`
+                      const botUrl = `https://t.me/${botName}`
                       webApp.openTelegramLink(botUrl)
                     } else {
                       // Иначе открываем в новой вкладке
-                      const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
-                      const botUrl = `https://t.me/${botName}?start=auth_${Date.now()}`
+                      const botUrl = `https://t.me/${botName}`
                       window.open(botUrl, '_blank')
                       alert('Откройте бота и нажмите кнопку "Авторизоваться" внизу экрана, затем вернитесь на эту страницу.')
                     }

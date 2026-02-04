@@ -14,6 +14,33 @@ function AuthConfirmContent() {
   const [isConfirming, setIsConfirming] = useState(false)
 
   useEffect(() => {
+    // Сохраняем URL для возврата, если его еще нет (на случай открытия через Menu Button напрямую)
+    if (typeof window !== 'undefined') {
+      const referrer = document.referrer
+      const currentReturnUrl = localStorage.getItem('return_url')
+      
+      // Если return_url не сохранен, пытаемся определить его из referrer
+      if (!currentReturnUrl && referrer) {
+        try {
+          const referrerUrl = new URL(referrer)
+          // Если referrer с того же домена и это не страница авторизации, сохраняем его
+          if (referrerUrl.origin === window.location.origin && 
+              !referrerUrl.pathname.includes('/auth/')) {
+            localStorage.setItem('return_url', referrerUrl.pathname + referrerUrl.search)
+            console.log('💾 Сохранен URL из referrer для возврата:', referrerUrl.pathname + referrerUrl.search)
+          }
+        } catch (e) {
+          console.warn('⚠️ Не удалось распарсить referrer:', e)
+        }
+      }
+      
+      // Если все еще нет return_url, используем главную страницу как fallback
+      if (!localStorage.getItem('return_url')) {
+        localStorage.setItem('return_url', '/')
+        console.log('💾 Установлен fallback URL (главная страница)')
+      }
+    }
+
     // Проверяем, открыто ли из Telegram Web App
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const webApp = window.Telegram.WebApp
@@ -117,12 +144,22 @@ function AuthConfirmContent() {
         ? localStorage.getItem('return_url') 
         : null
       
-      // Если есть сохраненный URL, возвращаемся на него, иначе на главную
-      const redirectUrl = returnUrl 
-        ? `${returnUrl}${returnUrl.includes('?') ? '&' : '?'}auth=confirmed`
-        : '/?auth=confirmed'
+      // Очищаем return_url из localStorage перед использованием
+      if (returnUrl && typeof window !== 'undefined') {
+        localStorage.removeItem('return_url')
+      }
       
-      console.log('🔗 URL для возврата:', returnUrl || 'главная страница')
+      // Если есть сохраненный URL, возвращаемся на него, иначе на главную
+      // Убираем параметр auth=confirmed из URL, если он там есть, и добавляем заново
+      let cleanReturnUrl = returnUrl || '/'
+      if (cleanReturnUrl.includes('auth=confirmed')) {
+        cleanReturnUrl = cleanReturnUrl.replace(/[?&]auth=confirmed/g, '').replace(/^&/, '?')
+      }
+      
+      const redirectUrl = `${cleanReturnUrl}${cleanReturnUrl.includes('?') ? '&' : '?'}auth=confirmed`
+      
+      console.log('🔗 Исходный URL для возврата:', returnUrl || 'главная страница')
+      console.log('🔗 Очищенный URL:', cleanReturnUrl)
       console.log('🔗 Полный URL редиректа:', redirectUrl)
       
       // Если открыто в Telegram Web App
