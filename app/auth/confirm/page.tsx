@@ -88,7 +88,15 @@ function AuthConfirmContent() {
 
     try {
       // Сохраняем данные в localStorage
+      console.log('💾 Сохранение данных пользователя в localStorage:', userData)
       localStorage.setItem('telegram_user', JSON.stringify(userData))
+      
+      // Проверяем, что данные сохранились
+      const saved = localStorage.getItem('telegram_user')
+      if (!saved) {
+        throw new Error('Не удалось сохранить данные')
+      }
+      console.log('✅ Данные успешно сохранены в localStorage')
 
       // Если открыто в Telegram Web App
       if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
@@ -96,8 +104,9 @@ function AuthConfirmContent() {
         
         // Показываем уведомление об успехе
         webApp.showAlert('✅ Авторизация успешна! Вы будете перенаправлены на сайт.', () => {
-          // Открываем сайт в браузере
+          // Открываем сайт в браузере с параметром auth=confirmed
           const siteUrl = `${window.location.origin}/?auth=confirmed`
+          console.log('🔗 Открываем сайт:', siteUrl)
           webApp.openLink(siteUrl, { try_instant_view: false })
           
           // Закрываем Web App через небольшую задержку
@@ -109,11 +118,13 @@ function AuthConfirmContent() {
         })
       } else {
         // Если не в Web App, просто перенаправляем
+        console.log('🔗 Перенаправление на главную страницу с auth=confirmed')
         router.push('/?auth=confirmed')
       }
     } catch (error) {
       console.error('❌ Ошибка при подтверждении:', error)
       setIsConfirming(false)
+      alert('Ошибка при сохранении данных. Попробуйте еще раз.')
     }
   }
 

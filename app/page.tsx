@@ -15,26 +15,50 @@ function HomeContent() {
   useEffect(() => {
     // Проверяем сохраненные данные при загрузке
     if (typeof window !== 'undefined') {
-      const savedUser = localStorage.getItem('telegram_user')
-      if (savedUser) {
-        try {
-          const user = JSON.parse(savedUser)
-          if (user.id && user.first_name) {
-            setTelegramUser(user)
+      const loadUser = () => {
+        const savedUser = localStorage.getItem('telegram_user')
+        if (savedUser) {
+          try {
+            const user = JSON.parse(savedUser)
+            if (user.id && user.first_name) {
+              console.log('✅ Пользователь найден в localStorage:', user)
+              setTelegramUser(user)
+              setIsLoading(false)
+              return true
+            }
+          } catch (e) {
+            console.error('❌ Ошибка при парсинге данных пользователя:', e)
+            localStorage.removeItem('telegram_user')
           }
-        } catch (e) {
-          localStorage.removeItem('telegram_user')
         }
+        return false
       }
-      
+
       // Проверяем параметр авторизации из URL
       const authConfirmed = searchParams.get('auth')
-      if (authConfirmed === 'confirmed' && savedUser) {
-        // Очищаем параметр из URL
-        window.history.replaceState({}, '', window.location.pathname)
+      if (authConfirmed === 'confirmed') {
+        console.log('✅ Параметр auth=confirmed найден, загружаем данные...')
+        
+        // Даем небольшую задержку для сохранения данных из Web App
+        setTimeout(() => {
+          const userLoaded = loadUser()
+          if (!userLoaded) {
+            console.warn('⚠️ Данные пользователя не найдены после подтверждения')
+            // Пробуем еще раз через небольшую задержку
+            setTimeout(() => {
+              loadUser()
+              setIsLoading(false)
+            }, 500)
+          }
+          
+          // Очищаем параметр из URL
+          window.history.replaceState({}, '', window.location.pathname)
+        }, 100)
+      } else {
+        // Обычная загрузка без параметра
+        loadUser()
+        setIsLoading(false)
       }
-      
-      setIsLoading(false)
     }
   }, [searchParams])
 
