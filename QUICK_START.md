@@ -20,10 +20,8 @@ npm install
 
 ```env
 TELEGRAM_BOT_TOKEN=8517653898:AAHwVsdsjErVCNoVGrHhVZUGptPWdrtOC2A
-SITE_URL=https://ваш-домен.vercel.app
+SITE_URL=https://autorisazion-telegram.vercel.app
 ```
-
-**Замените `SITE_URL` на реальный URL вашего сайта на Vercel!**
 
 Затем запустите:
 
