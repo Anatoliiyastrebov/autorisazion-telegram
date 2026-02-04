@@ -2,20 +2,32 @@
 
 /// <reference path="../telegram-webapp.d.ts" />
 
-import { useEffect, useState } from 'react'
-import TelegramLogin, { TelegramUser } from './TelegramLogin'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
+import type { TelegramUser } from './TelegramLogin'
 
 interface AuthPageProps {
   onAuth: (user: TelegramUser) => void
 }
 
-export default function AuthPage({ onAuth }: AuthPageProps) {
+function AuthPageContent({ onAuth }: AuthPageProps) {
   const [botName, setBotName] = useState<string>('')
   const [isChecking, setIsChecking] = useState(true)
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setBotName(process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || '')
+      
+      // Проверяем параметры авторизации из URL (callback от бота)
+      const authToken = searchParams.get('auth_token')
+      const userId = searchParams.get('user_id')
+      
+      if (authToken && userId) {
+        // Получаем данные пользователя из API
+        handleAuthCallback(authToken, userId)
+        return
+      }
       
       // Проверяем Telegram Web App при загрузке
       checkTelegramWebApp()
@@ -209,6 +221,48 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
     }, 100)
   }
 
+  const handleAuthCallback = async (token: string, userId: string) => {
+    try {
+      setIsChecking(true)
+      
+      // Получаем данные пользователя из Telegram Bot API
+      const response = await fetch(`/api/auth/get-user?token=${token}&user_id=${userId}`)
+      if (!response.ok) {
+        throw new Error('Failed to get user data')
+      }
+      
+      const userData = await response.json()
+      
+      // Создаем объект пользователя
+      const user: TelegramUser = {
+        id: userData.id,
+        first_name: userData.first_name,
+        last_name: userData.last_name,
+        username: userData.username,
+        photo_url: userData.photo_url,
+        auth_date: Math.floor(Date.now() / 1000),
+        hash: '', // Hash не нужен для авторизации через бота
+        initData: '',
+      }
+      
+      console.log('✅ Telegram авторизация через бота успешна:', user)
+      
+      // Сохраняем в localStorage
+      localStorage.setItem('telegram_user', JSON.stringify(user))
+      
+      // Очищаем параметры из URL
+      window.history.replaceState({}, '', window.location.pathname)
+      
+      // Вызываем callback
+      onAuth(user)
+      setIsChecking(false)
+    } catch (error) {
+      console.error('❌ Ошибка при обработке callback:', error)
+      setIsChecking(false)
+      alert('Ошибка авторизации. Попробуйте еще раз.')
+    }
+  }
+
   const handleTelegramAuth = (user: TelegramUser) => {
     console.log('✅ Telegram авторизация успешна:', user)
     // Сохраняем в localStorage
@@ -250,12 +304,40 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
           </p>
 
           {botName ? (
-            <TelegramLogin
-              botName={botName}
-              onAuth={handleTelegramAuth}
-              buttonSize="large"
-              requestAccess={false}
-            />
+            <button
+              onClick={() => {
+                // Генерируем уникальный токен для этой сессии
+                const sessionId = typeof crypto !== 'undefined' && crypto.randomUUID 
+                  ? crypto.randomUUID() 
+                  : Date.now().toString(36) + Math.random().toString(36).substring(2)
+                localStorage.setItem('auth_session_id', sessionId)
+                
+                // Открываем бота с параметром start
+                const botUrl = `https://t.me/${botName}?start=auth_${sessionId}`
+                window.open(botUrl, '_blank')
+                
+                // Показываем инструкцию
+                alert('Бот откроется в новом окне. Нажмите кнопку "Подтвердить авторизацию" в боте, затем вернитесь на эту страницу.')
+              }}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                fontSize: '1.1rem',
+                fontWeight: 500,
+                background: '#0088cc',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <span>🤖</span>
+              <span>Войти через Telegram</span>
+            </button>
           ) : (
             <div style={{ padding: '1rem', background: '#fff3cd', borderRadius: '8px', color: '#856404', textAlign: 'center' }}>
               ⚠️ Имя бота не настроено. Проверьте переменную окружения NEXT_PUBLIC_TELEGRAM_BOT_NAME
@@ -321,6 +403,20 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
         )}
       </div>
     </div>
+  )
+}
+
+export default function AuthPage(props: AuthPageProps) {
+  return (
+    <Suspense fallback={
+      <div className="container">
+        <div className="card">
+          <h1>Загрузка...</h1>
+        </div>
+      </div>
+    }>
+      <AuthPageContent {...props} />
+    </Suspense>
   )
 }
 
