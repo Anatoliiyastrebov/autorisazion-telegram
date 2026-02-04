@@ -59,9 +59,13 @@ export default function QuestionnaireForm({
   const [error, setError] = useState<string | null>(null)
 
   // Получаем имя бота из переменных окружения
-  const botName = typeof window !== 'undefined' 
-    ? (process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || '')
-    : ''
+  const [botName, setBotName] = useState<string>('')
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setBotName(process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || '')
+    }
+  }, [])
 
   // Обработчик успешной авторизации через Telegram Login Widget
   const handleTelegramAuth = (user: TelegramUser) => {
