@@ -23,10 +23,10 @@ function HomeContent() {
   const botName = process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'telega_automat_bot'
 
   const questionnaires = [
-    { path: '/questionnaire/baby', name: '👶 Анкета для малыша', type: 'baby' },
-    { path: '/questionnaire/child', name: '🧒 Детская анкета', type: 'child' },
-    { path: '/questionnaire/women', name: '👩 Женская анкета', type: 'women' },
-    { path: '/questionnaire/men', name: '👨 Мужская анкета', type: 'men' },
+    { path: '/questionnaire/baby', name: 'Для младенца', subtitle: 'До 1 года', icon: '👶', type: 'baby' },
+    { path: '/questionnaire/child', name: 'Детская анкета', subtitle: '1–12 лет', icon: '🧒', type: 'child' },
+    { path: '/questionnaire/women', name: 'Женская анкета', subtitle: 'Для взрослых женщин', icon: '👩', type: 'women' },
+    { path: '/questionnaire/men', name: 'Мужская анкета', subtitle: 'Для взрослых мужчин', icon: '👨', type: 'men' },
   ]
 
   // Загрузка данных пользователя
@@ -158,10 +158,13 @@ function HomeContent() {
     return (
       <div className="container">
         <div className="card">
-          <h1 style={{ textAlign: 'center' }}>📋 Анкеты</h1>
-          <p style={{ textAlign: 'center', color: '#666', marginTop: '1rem' }}>
-            Загрузка...
-          </p>
+          <div style={{ textAlign: 'center' }}>
+            <span style={{ fontSize: '3rem' }}>💚</span>
+            <h1 style={{ color: '#2d7a4f', marginTop: '0.5rem' }}>Анкета по здоровью</h1>
+            <p style={{ color: '#666', marginTop: '1rem' }}>
+              Загрузка...
+            </p>
+          </div>
         </div>
       </div>
     )
@@ -172,16 +175,24 @@ function HomeContent() {
     return (
       <div className="container">
         <div className="card">
-          <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>📋 Анкеты</h1>
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <span style={{ fontSize: '3rem' }}>💚</span>
+            <h1 style={{ color: '#2d7a4f', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+              Анкета по здоровью
+            </h1>
+            <p style={{ color: '#666', fontSize: '1rem', margin: 0 }}>
+              Это бесплатная анкета по здоровью. Заполните форму, и мы свяжемся с вами для консультации.
+            </p>
+          </div>
           
           <div style={{ 
             padding: '2rem', 
-            background: '#e7f3ff', 
+            background: '#e8f5e9', 
             borderRadius: '12px',
-            border: '2px solid #0088cc',
+            border: '2px solid #2d7a4f',
             marginBottom: '1.5rem'
           }}>
-            <h2 style={{ textAlign: 'center', color: '#0088cc', marginBottom: '1rem' }}>
+            <h2 style={{ textAlign: 'center', color: '#2d7a4f', marginBottom: '1rem' }}>
               🔐 Требуется авторизация
             </h2>
             <p style={{ textAlign: 'center', color: '#666', marginBottom: '1.5rem', lineHeight: 1.6 }}>
@@ -198,10 +209,10 @@ function HomeContent() {
                   padding: '16px 32px',
                   fontSize: '18px',
                   fontWeight: 600,
-                  background: isAuthenticating ? '#ccc' : '#0088cc',
+                  background: isAuthenticating ? '#ccc' : '#2d7a4f',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '8px',
+                  borderRadius: '12px',
                   cursor: isAuthenticating ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -209,7 +220,8 @@ function HomeContent() {
                   gap: '8px',
                   minHeight: '56px',
                   minWidth: '200px',
-                  WebkitTapHighlightColor: 'rgba(0,136,204,0.3)',
+                  boxShadow: isAuthenticating ? 'none' : '0 4px 12px rgba(45, 122, 79, 0.3)',
+                  WebkitTapHighlightColor: 'rgba(45,122,79,0.3)',
                   touchAction: 'manipulation',
                   WebkitUserSelect: 'none',
                   userSelect: 'none',
@@ -248,13 +260,21 @@ function HomeContent() {
   return (
     <div className="container">
       <div className="card">
-        <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>📋 Анкеты</h1>
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <span style={{ fontSize: '3rem' }}>💚</span>
+          <h1 style={{ color: '#2d7a4f', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+            Анкета по здоровью
+          </h1>
+          <p style={{ color: '#666', fontSize: '1rem', margin: 0 }}>
+            Это бесплатная анкета по здоровью. Заполните форму, и мы свяжемся с вами для консультации.
+          </p>
+        </div>
         
         {/* Статус авторизации */}
         <div style={{ 
           padding: '1rem 1.5rem', 
-          background: '#d4edda', 
-          borderRadius: '8px',
+          background: '#e8f5e9', 
+          borderRadius: '12px',
           border: '1px solid #c3e6cb',
           marginBottom: '2rem',
           display: 'flex',
@@ -266,10 +286,10 @@ function HomeContent() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <span style={{ fontSize: '1.5rem' }}>✅</span>
             <div>
-              <p style={{ color: '#155724', fontWeight: 600, margin: 0 }}>
+              <p style={{ color: '#2d7a4f', fontWeight: 600, margin: 0 }}>
                 Авторизация пройдена
               </p>
-              <p style={{ color: '#155724', fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>
+              <p style={{ color: '#2d7a4f', fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>
                 {telegramUser.username ? `@${telegramUser.username}` : `${telegramUser.first_name} ${telegramUser.last_name || ''}`}
               </p>
             </div>
@@ -280,9 +300,9 @@ function HomeContent() {
               padding: '0.5rem 1rem',
               fontSize: '0.85rem',
               background: 'transparent',
-              color: '#155724',
-              border: '1px solid #155724',
-              borderRadius: '6px',
+              color: '#2d7a4f',
+              border: '1px solid #2d7a4f',
+              borderRadius: '8px',
               cursor: 'pointer'
             }}
           >
@@ -290,40 +310,50 @@ function HomeContent() {
           </button>
         </div>
         
-        <p style={{ textAlign: 'center', color: '#666', marginBottom: '1.5rem' }}>
-          Выберите анкету для заполнения
-        </p>
+        <h2 style={{ textAlign: 'center', color: '#333', marginBottom: '1.5rem', fontSize: '1.1rem', fontWeight: 500 }}>
+          💚 Выберите категорию анкеты
+        </h2>
         
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: '1rem' 
+        }}>
           {questionnaires.map((q) => (
             <Link
               key={q.path}
               href={q.path}
               style={{
-                display: 'block',
-                padding: '1.5rem',
-                background: '#f8f9fa',
-                border: '2px solid #0088cc',
-                borderRadius: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '1.5rem 1rem',
+                background: 'white',
+                border: '1px solid #e9ecef',
+                borderRadius: '16px',
                 textDecoration: 'none',
                 color: '#333',
-                fontSize: '1.1rem',
-                fontWeight: 500,
-                textAlign: 'center',
-                transition: 'all 0.3s ease'
+                transition: 'all 0.3s ease',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#e7f3ff'
-                e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 136, 204, 0.2)'
+                e.currentTarget.style.borderColor = '#2d7a4f'
+                e.currentTarget.style.transform = 'translateY(-4px)'
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(45, 122, 79, 0.15)'
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#f8f9fa'
+                e.currentTarget.style.borderColor = '#e9ecef'
                 e.currentTarget.style.transform = 'translateY(0)'
-                e.currentTarget.style.boxShadow = 'none'
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)'
               }}
             >
-              {q.name}
+              <span style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>{q.icon}</span>
+              <span style={{ fontWeight: 600, fontSize: '1rem', color: '#333', textAlign: 'center' }}>
+                {q.name}
+              </span>
+              <span style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.25rem', textAlign: 'center' }}>
+                {q.subtitle}
+              </span>
             </Link>
           ))}
         </div>
@@ -337,10 +367,13 @@ export default function Home() {
     <Suspense fallback={
       <div className="container">
         <div className="card">
-          <h1 style={{ textAlign: 'center' }}>📋 Анкеты</h1>
-          <p style={{ textAlign: 'center', color: '#666', marginTop: '1rem' }}>
-            Загрузка...
-          </p>
+          <div style={{ textAlign: 'center' }}>
+            <span style={{ fontSize: '3rem' }}>💚</span>
+            <h1 style={{ color: '#2d7a4f', marginTop: '0.5rem' }}>Анкета по здоровью</h1>
+            <p style={{ color: '#666', marginTop: '1rem' }}>
+              Загрузка...
+            </p>
+          </div>
         </div>
       </div>
     }>
