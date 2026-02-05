@@ -12,9 +12,25 @@ interface TelegramData {
   initData?: string // Оригинальная строка initData для Web App
 }
 
+interface QuestionOption {
+  value: string
+  label: { ru: string; en: string; de: string }
+}
+
+interface Question {
+  id: string
+  label: { ru: string; en: string; de: string }
+  options?: QuestionOption[]
+}
+
+interface Section {
+  questions: Question[]
+}
+
 interface SubmitRequest {
   questionnaireType: string
   answers?: Record<string, string | string[]> // Ответы на вопросы анкеты
+  sections?: Section[] // Секции с вопросами для перевода ответов
   telegram: TelegramData
 }
 
@@ -191,81 +207,68 @@ export async function POST(request: NextRequest) {
       // Добавляем ответы на вопросы анкеты, если они есть
       if (body.answers && Object.keys(body.answers).length > 0) {
         adminMessage += `📝 Ответы на вопросы анкеты:\n`
-        // Маппинг ID вопросов на читаемые названия
-        const questionLabels: Record<string, string> = {
-          name: 'Имя',
-          last_name: 'Фамилия',
-          age: 'Возраст',
-          age_months: 'Возраст (месяцев)',
-          weight: 'Вес (кг)',
-          height: 'Рост (см)',
-          weight_satisfaction: 'Удовлетворённость весом',
-          weight_goal: 'Цель по весу',
-          water_per_day: 'Вода в день',
-          had_covid: 'Болел ковидом',
-          covid_times: 'Раз болел ковидом',
-          had_vaccine: 'Вакцина от ковида',
-          vaccine_doses: 'Доз вакцины',
-          covid_complications: 'Осложнения после ковида',
-          hair_quality: 'Состояние волос',
-          teeth_problems: 'Зубы',
-          digestion_detailed: 'Пищеварение',
-          digestion: 'Пищеварение',
-          stones_kidneys_gallbladder: 'Камни/песок',
-          operations_traumas: 'Операции и травмы',
-          blood_pressure: 'Давление',
-          chronic_diseases: 'Хронические заболевания',
-          headaches_detailed: 'Головные боли',
-          headaches_sleep: 'Головные боли и сон',
-          numbness_cold_limbs: 'Онемение конечностей',
-          varicose_hemorrhoids_pigment: 'Варикоз/геморрой',
-          joints_detailed: 'Суставы',
-          cysts_polyps_tumors: 'Кисты/полипы',
-          herpes_warts_discharge: 'Герпес/папилломы',
-          menstruation_detailed: 'Месячные',
-          prostatitis: 'Простатит',
-          skin_problems_detailed: 'Проблемы с кожей',
-          skin_condition: 'Состояние кожи',
-          allergies_detailed: 'Аллергия',
-          allergies: 'Аллергия',
-          colds_medication: 'Простуды',
-          sleep_problems: 'Сон',
-          sleep_quality: 'Качество сна',
-          energy_morning: 'Энергия',
-          memory_concentration: 'Память и концентрация',
-          lifestyle: 'Образ жизни',
-          regular_medications: 'Регулярные лекарства',
-          has_medical_documents: 'Есть анализы/УЗИ',
-          main_concern: 'Главный вопрос',
-          birth_type: 'Тип родов',
-          mother_toxicosis: 'Токсикоз у мамы',
-          mother_allergy: 'Аллергия у мамы',
-          mother_constipation: 'Запор у мамы',
-          mother_antibiotics: 'Антибиотики при беременности',
-          mother_anemia: 'Анемия у мамы',
-          pregnancy_problems: 'Проблемы при беременности',
-          what_else: 'Дополнительно',
-          sweats_at_night: 'Потеет во сне',
-          bad_breath: 'Запах изо рта',
-          injuries: 'Травмы',
-          illness_antibiotics: 'Болезни/антибиотики',
-          teeth_decay: 'Зубы портятся',
-          sweats_grinds: 'Потеет/скрипит зубами',
-          sugar_dependency: 'Зависимость от сладкого',
-          hyperactive: 'Гиперактивность',
+        
+        // Создаём маппинг вопросов из секций
+        const questionsMap: Map<string, Question> = new Map()
+        if (body.sections) {
+          for (const section of body.sections) {
+            for (const question of section.questions) {
+              questionsMap.set(question.id, question)
+            }
+          }
         }
+        
+        // Функция для перевода значения в читаемый текст
+        const translateValue = (questionId: string, value: string | string[]): string => {
+          const question = questionsMap.get(questionId)
+          
+          if (Array.isArray(value)) {
+            // Для checkbox - переводим каждое значение
+            const translatedValues = value.map(v => {
+              if (question?.options) {
+                const option = question.options.find(o => o.value === v)
+                return option ? option.label.ru : v
+              }
+              return v
+            })
+            return translatedValues.join(', ')
+          }
+          
+          // Для radio - ищем в options
+          if (question?.options) {
+            const option = question.options.find(o => o.value === value)
+            if (option) return option.label.ru
+          }
+          
+          return value
+        }
+        
+        // Функция для получения лейбла вопроса
+        const getQuestionLabel = (questionId: string): string => {
+          const question = questionsMap.get(questionId)
+          if (question) return question.label.ru
+          
+          // Fallback маппинг
+          const fallbackLabels: Record<string, string> = {
+            name: 'Имя',
+            last_name: 'Фамилия',
+            age: 'Возраст',
+            age_months: 'Возраст (месяцев)',
+            weight: 'Вес (кг)',
+            height: 'Рост (см)',
+          }
+          return fallbackLabels[questionId] || questionId
+        }
+        
+        let questionNumber = 0
+        
         for (const [questionId, answer] of Object.entries(body.answers)) {
           // Пропускаем дополнительные поля (они будут добавлены к основному ответу)
           if (questionId.endsWith('_additional')) continue
           
-          const label = questionLabels[questionId] || questionId
-          let displayAnswer: string
-          
-          if (Array.isArray(answer)) {
-            displayAnswer = answer.join(', ')
-          } else {
-            displayAnswer = answer
-          }
+          questionNumber++
+          const label = getQuestionLabel(questionId)
+          let displayAnswer = translateValue(questionId, answer)
           
           // Добавляем дополнительное поле, если есть
           const additionalAnswer = body.answers[`${questionId}_additional`]
@@ -273,7 +276,7 @@ export async function POST(request: NextRequest) {
             displayAnswer += ` (${additionalAnswer})`
           }
           
-          adminMessage += `\n• ${label}: ${displayAnswer}`
+          adminMessage += `\n${questionNumber}. ${label}: ${displayAnswer}`
         }
       }
 

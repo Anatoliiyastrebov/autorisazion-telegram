@@ -30,6 +30,18 @@ export interface Question {
   }
   min?: number
   max?: number
+  // Условие показа вопроса (зависит от ответа на другой вопрос)
+  showIf?: {
+    questionId: string
+    value: string | string[]
+  }
+}
+
+// Функция для получения читаемого значения опции
+export function getOptionLabel(options: QuestionOption[] | undefined, value: string, lang: Language = 'ru'): string {
+  if (!options) return value
+  const option = options.find(o => o.value === value)
+  return option ? option.label[lang] : value
 }
 
 export interface QuestionnaireSection {
@@ -459,13 +471,13 @@ export const womanQuestionnaire: QuestionnaireSection[] = [
       { id: 'weight_goal', type: 'radio', label: { ru: 'Что вы хотите сделать с весом?', en: 'What do you want to do with your weight?', de: 'Was möchten Sie mit Ihrem Gewicht tun?' }, icon: 'target', options: [
         { value: 'lose', label: { ru: 'Сбросить вес', en: 'Lose weight', de: 'Gewicht verlieren' } },
         { value: 'gain', label: { ru: 'Набрать вес', en: 'Gain weight', de: 'Gewicht zunehmen' } },
-      ], required: false, hasAdditional: true },
+      ], required: false, hasAdditional: true, showIf: { questionId: 'weight_satisfaction', value: 'not_satisfied' } },
       { id: 'water_per_day', type: 'radio', label: { ru: 'Сколько воды в день Вы пьете?', en: 'How much water do you drink per day?', de: 'Wie viel Wasser trinken Sie pro Tag?' }, icon: 'droplet', options: waterOptions, required: true, hasAdditional: false },
       { id: 'had_covid', type: 'radio', label: { ru: 'Был ли у вас ковид?', en: 'Did you have COVID?', de: 'Hatten Sie COVID?' }, icon: 'shield', options: yesNoOptionsSimple, required: true, hasAdditional: false },
-      { id: 'covid_times', type: 'number', label: { ru: 'Сколько раз вы болели ковидом?', en: 'How many times did you have COVID?', de: 'Wie oft hatten Sie COVID?' }, icon: 'shield', required: false, hasAdditional: false, min: 1, max: 10, placeholder: { ru: 'Введите число', en: 'Enter number', de: 'Zahl eingeben' } },
+      { id: 'covid_times', type: 'number', label: { ru: 'Сколько раз вы болели ковидом?', en: 'How many times did you have COVID?', de: 'Wie oft hatten Sie COVID?' }, icon: 'shield', required: false, hasAdditional: false, min: 1, max: 10, placeholder: { ru: 'Введите число', en: 'Enter number', de: 'Zahl eingeben' }, showIf: { questionId: 'had_covid', value: 'yes' } },
+      { id: 'covid_complications', type: 'checkbox', label: { ru: 'Были ли осложнения после ковида?', en: 'Were there complications after COVID?', de: 'Gab es Komplikationen nach COVID?' }, icon: 'alert-circle', options: covidComplicationsOptions, required: false, hasAdditional: true, showIf: { questionId: 'had_covid', value: 'yes' } },
       { id: 'had_vaccine', type: 'radio', label: { ru: 'Делали ли вы вакцину от ковида?', en: 'Did you get COVID vaccine?', de: 'Haben Sie COVID-Impfung erhalten?' }, icon: 'shield', options: yesNoOptionsSimple, required: true, hasAdditional: false },
-      { id: 'vaccine_doses', type: 'number', label: { ru: 'Сколько доз вакцины вы получили?', en: 'How many vaccine doses did you receive?', de: 'Wie viele Impfdosen haben Sie erhalten?' }, icon: 'shield', required: false, hasAdditional: false, min: 1, max: 10, placeholder: { ru: 'Введите число', en: 'Enter number', de: 'Zahl eingeben' } },
-      { id: 'covid_complications', type: 'checkbox', label: { ru: 'Были ли осложнения после ковида?', en: 'Were there complications after COVID?', de: 'Gab es Komplikationen nach COVID?' }, icon: 'alert-circle', options: covidComplicationsOptions, required: true, hasAdditional: true },
+      { id: 'vaccine_doses', type: 'number', label: { ru: 'Сколько доз вакцины вы получили?', en: 'How many vaccine doses did you receive?', de: 'Wie viele Impfdosen haben Sie erhalten?' }, icon: 'shield', required: false, hasAdditional: false, min: 1, max: 10, placeholder: { ru: 'Введите число', en: 'Enter number', de: 'Zahl eingeben' }, showIf: { questionId: 'had_vaccine', value: 'yes' } },
       { id: 'hair_quality', type: 'checkbox', label: { ru: 'Состояние волос', en: 'Hair condition', de: 'Haarzustand' }, icon: 'sparkles', options: hairQualityOptions, required: true, hasAdditional: true },
       { id: 'teeth_problems', type: 'checkbox', label: { ru: 'Зубы', en: 'Teeth', de: 'Zähne' }, icon: 'smile', options: teethProblemsOptions, required: true, hasAdditional: true },
       { id: 'digestion_detailed', type: 'checkbox', label: { ru: 'Пищеварение', en: 'Digestion', de: 'Verdauung' }, icon: 'heart', options: digestionDetailedOptions, required: true, hasAdditional: true },
@@ -543,13 +555,13 @@ export const manQuestionnaire: QuestionnaireSection[] = [
       { id: 'weight_goal', type: 'radio', label: { ru: 'Что вы хотите сделать с весом?', en: 'What do you want to do with your weight?', de: 'Was möchten Sie mit Ihrem Gewicht tun?' }, icon: 'target', options: [
         { value: 'lose', label: { ru: 'Сбросить вес', en: 'Lose weight', de: 'Gewicht verlieren' } },
         { value: 'gain', label: { ru: 'Набрать вес', en: 'Gain weight', de: 'Gewicht zunehmen' } },
-      ], required: false, hasAdditional: true },
+      ], required: false, hasAdditional: true, showIf: { questionId: 'weight_satisfaction', value: 'not_satisfied' } },
       { id: 'water_per_day', type: 'radio', label: { ru: 'Сколько воды в день Вы пьете?', en: 'How much water do you drink per day?', de: 'Wie viel Wasser trinken Sie pro Tag?' }, icon: 'droplet', options: waterOptions, required: true, hasAdditional: false },
       { id: 'had_covid', type: 'radio', label: { ru: 'Был ли у вас ковид?', en: 'Did you have COVID?', de: 'Hatten Sie COVID?' }, icon: 'shield', options: yesNoOptionsSimple, required: true, hasAdditional: false },
-      { id: 'covid_times', type: 'number', label: { ru: 'Сколько раз вы болели ковидом?', en: 'How many times did you have COVID?', de: 'Wie oft hatten Sie COVID?' }, icon: 'shield', required: false, hasAdditional: false, min: 1, max: 10, placeholder: { ru: 'Введите число', en: 'Enter number', de: 'Zahl eingeben' } },
+      { id: 'covid_times', type: 'number', label: { ru: 'Сколько раз вы болели ковидом?', en: 'How many times did you have COVID?', de: 'Wie oft hatten Sie COVID?' }, icon: 'shield', required: false, hasAdditional: false, min: 1, max: 10, placeholder: { ru: 'Введите число', en: 'Enter number', de: 'Zahl eingeben' }, showIf: { questionId: 'had_covid', value: 'yes' } },
+      { id: 'covid_complications', type: 'checkbox', label: { ru: 'Были ли осложнения после ковида?', en: 'Were there complications after COVID?', de: 'Gab es Komplikationen nach COVID?' }, icon: 'alert-circle', options: covidComplicationsOptions, required: false, hasAdditional: true, showIf: { questionId: 'had_covid', value: 'yes' } },
       { id: 'had_vaccine', type: 'radio', label: { ru: 'Делали ли вы вакцину от ковида?', en: 'Did you get COVID vaccine?', de: 'Haben Sie COVID-Impfung erhalten?' }, icon: 'shield', options: yesNoOptionsSimple, required: true, hasAdditional: false },
-      { id: 'vaccine_doses', type: 'number', label: { ru: 'Сколько доз вакцины вы получили?', en: 'How many vaccine doses did you receive?', de: 'Wie viele Impfdosen haben Sie erhalten?' }, icon: 'shield', required: false, hasAdditional: false, min: 1, max: 10, placeholder: { ru: 'Введите число', en: 'Enter number', de: 'Zahl eingeben' } },
-      { id: 'covid_complications', type: 'checkbox', label: { ru: 'Были ли осложнения после ковида?', en: 'Were there complications after COVID?', de: 'Gab es Komplikationen nach COVID?' }, icon: 'alert-circle', options: covidComplicationsOptions, required: true, hasAdditional: true },
+      { id: 'vaccine_doses', type: 'number', label: { ru: 'Сколько доз вакцины вы получили?', en: 'How many vaccine doses did you receive?', de: 'Wie viele Impfdosen haben Sie erhalten?' }, icon: 'shield', required: false, hasAdditional: false, min: 1, max: 10, placeholder: { ru: 'Введите число', en: 'Enter number', de: 'Zahl eingeben' }, showIf: { questionId: 'had_vaccine', value: 'yes' } },
       { id: 'hair_quality', type: 'checkbox', label: { ru: 'Состояние волос', en: 'Hair condition', de: 'Haarzustand' }, icon: 'sparkles', options: hairQualityOptions, required: true, hasAdditional: true },
       { id: 'teeth_problems', type: 'checkbox', label: { ru: 'Зубы', en: 'Teeth', de: 'Zähne' }, icon: 'smile', options: teethProblemsOptions, required: true, hasAdditional: true },
       { id: 'digestion_detailed', type: 'checkbox', label: { ru: 'Пищеварение', en: 'Digestion', de: 'Verdauung' }, icon: 'heart', options: digestionDetailedOptions, required: true, hasAdditional: true },

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   getQuestionnaire, 
@@ -8,7 +8,8 @@ import {
   QuestionnaireSection, 
   Question,
   QuestionnaireTypeName,
-  Language
+  Language,
+  getOptionLabel
 } from '@/lib/questionnaires'
 
 interface TelegramUser {
@@ -29,7 +30,7 @@ interface QuestionnaireFormProps {
 
 export default function QuestionnaireForm({ title, questionnaireType }: QuestionnaireFormProps) {
   const router = useRouter()
-  const lang: Language = 'ru' // Можно сделать переключатель языка
+  const lang: Language = 'ru'
   const sections = getQuestionnaire(questionnaireType as QuestionnaireTypeName)
   const questionnaireTitle = getQuestionnaireTitle(questionnaireType as QuestionnaireTypeName, lang)
   
@@ -49,11 +50,9 @@ export default function QuestionnaireForm({ title, questionnaireType }: Question
       try {
         const user = JSON.parse(savedUser)
         if (user.id && user.first_name) {
-          // Проверяем, что данные не устарели
           if (user.auth_date) {
             const currentTime = Math.floor(Date.now() / 1000)
             if (currentTime - user.auth_date > 86400) {
-              console.log('⚠️ Данные устарели')
               localStorage.removeItem('telegram_user')
               router.push('/')
               return
@@ -62,7 +61,6 @@ export default function QuestionnaireForm({ title, questionnaireType }: Question
           
           setTelegramUser(user)
           
-          // Автозаполнение данных из Telegram
           setAnswers(prev => {
             const newAnswers = { ...prev }
             if (user.first_name && !newAnswers.name) {
@@ -88,12 +86,85 @@ export default function QuestionnaireForm({ title, questionnaireType }: Question
     setIsLoading(false)
   }, [router])
 
-  // Обработка radio (одиночный выбор)
-  const handleRadioChange = (questionId: string, value: string) => {
-    setAnswers(prev => ({ ...prev, [questionId]: value }))
+  // Проверка условия показа вопроса
+  const shouldShowQuestion = (question: Question): boolean => {
+    if (!question.showIf) return true
+    
+    const { questionId, value } = question.showIf
+    const answer = answers[questionId]
+    
+    if (Array.isArray(value)) {
+      if (Array.isArray(answer)) {
+        return value.some(v => answer.includes(v))
+      }
+      return value.includes(answer as string)
+    }
+    
+    if (Array.isArray(answer)) {
+      return answer.includes(value)
+    }
+    
+    return answer === value
   }
 
-  // Обработка checkbox (множественный выбор)
+  // Получаем все видимые вопросы с нумерацией
+  const visibleQuestionsWithNumbers = useMemo(() => {
+    let globalNumber = 0
+    const result: Map<string, number> = new Map()
+    
+    for (const section of sections) {
+      for (const question of section.questions) {
+        if (shouldShowQuestion(question)) {
+          globalNumber++
+          result.set(question.id, globalNumber)
+        }
+      }
+    }
+    
+    return result
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sections, answers])
+
+  // Обработка radio
+  const handleRadioChange = (questionId: string, value: string) => {
+    setAnswers(prev => {
+      const newAnswers = { ...prev, [questionId]: value }
+      
+      // Очищаем зависимые вопросы при изменении ответа
+      for (const section of sections) {
+        for (const q of section.questions) {
+          if (q.showIf?.questionId === questionId && !shouldShowQuestionWithAnswer(q, newAnswers)) {
+            delete newAnswers[q.id]
+          }
+        }
+      }
+      
+      return newAnswers
+    })
+  }
+
+  // Вспомогательная функция для проверки showIf с конкретными ответами
+  const shouldShowQuestionWithAnswer = (question: Question, currentAnswers: Record<string, string | string[]>): boolean => {
+    if (!question.showIf) return true
+    
+    const { questionId, value } = question.showIf
+    const answer = currentAnswers[questionId]
+    
+    if (Array.isArray(value)) {
+      if (Array.isArray(answer)) {
+        return value.some(v => answer.includes(v))
+      }
+      return value.includes(answer as string)
+    }
+    
+    if (Array.isArray(answer)) {
+      return answer.includes(value)
+    }
+    
+    return answer === value
+  }
+
+  // Обработка checkbox
   const handleCheckboxToggle = (questionId: string, value: string) => {
     setAnswers(prev => {
       const currentValues = (prev[questionId] as string[]) || []
@@ -115,7 +186,7 @@ export default function QuestionnaireForm({ title, questionnaireType }: Question
     setAdditionalAnswers(prev => ({ ...prev, [questionId]: value }))
   }
 
-  // Проверка, выбран ли вариант (для checkbox)
+  // Проверка checkbox
   const isChecked = (questionId: string, value: string): boolean => {
     const currentValues = answers[questionId]
     if (Array.isArray(currentValues)) {
@@ -124,10 +195,12 @@ export default function QuestionnaireForm({ title, questionnaireType }: Question
     return false
   }
 
-  // Проверка заполнения обязательных полей
+  // Проверка заполнения обязательных полей (только видимых)
   const isFormValid = (): boolean => {
     for (const section of sections) {
       for (const question of section.questions) {
+        if (!shouldShowQuestion(question)) continue
+        
         if (question.required) {
           const answer = answers[question.id]
           if (!answer || (Array.isArray(answer) && answer.length === 0) || (typeof answer === 'string' && answer.trim() === '')) {
@@ -154,8 +227,18 @@ export default function QuestionnaireForm({ title, questionnaireType }: Question
     setError(null)
 
     try {
-      // Объединяем ответы с дополнительными полями
-      const combinedAnswers = { ...answers }
+      // Собираем только видимые вопросы
+      const visibleAnswers: Record<string, string | string[]> = {}
+      for (const section of sections) {
+        for (const question of section.questions) {
+          if (shouldShowQuestion(question) && answers[question.id] !== undefined) {
+            visibleAnswers[question.id] = answers[question.id]
+          }
+        }
+      }
+
+      // Объединяем с дополнительными полями
+      const combinedAnswers: Record<string, string | string[]> = { ...visibleAnswers }
       for (const [key, value] of Object.entries(additionalAnswers)) {
         if (value && value.trim()) {
           combinedAnswers[`${key}_additional`] = value
@@ -168,6 +251,7 @@ export default function QuestionnaireForm({ title, questionnaireType }: Question
         body: JSON.stringify({
           questionnaireType,
           answers: combinedAnswers,
+          sections, // Отправляем секции для получения лейблов
           telegram: {
             id: telegramUser.id,
             username: telegramUser.username,
@@ -277,176 +361,199 @@ export default function QuestionnaireForm({ title, questionnaireType }: Question
         </div>
 
         {/* Секции анкеты */}
-        {sections.map((section) => (
-          <div key={section.id} style={{ 
-            marginBottom: '2rem',
-            padding: '1.5rem',
-            background: '#f8f9fa',
-            borderRadius: '12px',
-            border: '1px solid #e9ecef'
-          }}>
-            {/* Заголовок секции */}
-            <h2 style={{ 
-              fontSize: '1.2rem', 
-              fontWeight: 600, 
-              color: '#2d7a4f',
-              marginBottom: '1.5rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
+        {sections.map((section) => {
+          // Проверяем, есть ли видимые вопросы в секции
+          const visibleQuestions = section.questions.filter(q => shouldShowQuestion(q))
+          if (visibleQuestions.length === 0) return null
+          
+          return (
+            <div key={section.id} style={{ 
+              marginBottom: '2rem',
+              padding: '1.5rem',
+              background: '#f8f9fa',
+              borderRadius: '12px',
+              border: '1px solid #e9ecef'
             }}>
-              {getSectionIcon(section.icon)}
-              {section.title[lang]}
-            </h2>
+              {/* Заголовок секции */}
+              <h2 style={{ 
+                fontSize: '1.2rem', 
+                fontWeight: 600, 
+                color: '#2d7a4f',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                {getSectionIcon(section.icon)}
+                {section.title[lang]}
+              </h2>
 
-            {/* Вопросы секции */}
-            {section.questions.map((question) => (
-              <div key={question.id} style={{ marginBottom: '1.5rem' }}>
-                <label style={{ 
-                  display: 'block', 
-                  marginBottom: '0.75rem', 
-                  fontWeight: 500,
-                  color: '#333',
-                  fontSize: '0.95rem'
-                }}>
-                  {question.label[lang]}
-                  {question.required && <span style={{ color: '#dc3545' }}> *</span>}
-                </label>
+              {/* Вопросы секции */}
+              {section.questions.map((question) => {
+                if (!shouldShowQuestion(question)) return null
                 
-                {/* Text input */}
-                {question.type === 'text' && (
-                  <input
-                    type="text"
-                    value={(answers[question.id] as string) || ''}
-                    onChange={(e) => handleInputChange(question.id, e.target.value)}
-                    placeholder={question.placeholder?.[lang] || ''}
-                    style={{ 
-                      width: '100%', 
-                      padding: '0.75rem', 
-                      fontSize: '1rem', 
-                      border: '1px solid #ddd', 
-                      borderRadius: '8px',
-                      background: 'white'
-                    }}
-                  />
-                )}
+                const questionNumber = visibleQuestionsWithNumbers.get(question.id)
                 
-                {/* Number input */}
-                {question.type === 'number' && (
-                  <input
-                    type="number"
-                    value={(answers[question.id] as string) || ''}
-                    onChange={(e) => handleInputChange(question.id, e.target.value)}
-                    min={question.min}
-                    max={question.max}
-                    placeholder={question.placeholder?.[lang] || ''}
-                    style={{ 
-                      width: '100%', 
-                      padding: '0.75rem', 
-                      fontSize: '1rem', 
-                      border: '1px solid #ddd', 
-                      borderRadius: '8px',
-                      background: 'white'
-                    }}
-                  />
-                )}
-                
-                {/* Textarea */}
-                {question.type === 'textarea' && (
-                  <textarea
-                    value={(answers[question.id] as string) || ''}
-                    onChange={(e) => handleInputChange(question.id, e.target.value)}
-                    rows={3}
-                    placeholder={question.placeholder?.[lang] || ''}
-                    style={{ 
-                      width: '100%', 
-                      padding: '0.75rem', 
-                      fontSize: '1rem', 
-                      border: '1px solid #ddd', 
-                      borderRadius: '8px',
-                      fontFamily: 'inherit',
-                      resize: 'vertical',
-                      background: 'white'
-                    }}
-                  />
-                )}
-                
-                {/* Radio buttons */}
-                {question.type === 'radio' && question.options && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    {question.options.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => handleRadioChange(question.id, option.value)}
-                        style={{
-                          padding: '0.5rem 1rem',
-                          fontSize: '0.9rem',
-                          border: answers[question.id] === option.value ? '2px solid #2d7a4f' : '1px solid #ddd',
-                          borderRadius: '20px',
-                          background: answers[question.id] === option.value ? '#e8f5e9' : 'white',
-                          color: answers[question.id] === option.value ? '#2d7a4f' : '#333',
-                          cursor: 'pointer',
-                          fontWeight: answers[question.id] === option.value ? 600 : 400,
-                          transition: 'all 0.2s ease'
+                return (
+                  <div key={question.id} style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ 
+                      display: 'block', 
+                      marginBottom: '0.75rem', 
+                      fontWeight: 500,
+                      color: '#333',
+                      fontSize: '0.95rem'
+                    }}>
+                      <span style={{ 
+                        color: '#2d7a4f', 
+                        fontWeight: 600,
+                        marginRight: '0.5rem'
+                      }}>
+                        {questionNumber}.
+                      </span>
+                      {question.label[lang]}
+                      {question.required && <span style={{ color: '#dc3545' }}> *</span>}
+                    </label>
+                    
+                    {/* Text input */}
+                    {question.type === 'text' && (
+                      <input
+                        type="text"
+                        value={(answers[question.id] as string) || ''}
+                        onChange={(e) => handleInputChange(question.id, e.target.value)}
+                        placeholder={question.placeholder?.[lang] || ''}
+                        style={{ 
+                          width: '100%', 
+                          padding: '0.75rem', 
+                          fontSize: '1rem', 
+                          border: '1px solid #ddd', 
+                          borderRadius: '8px',
+                          background: 'white',
+                          boxSizing: 'border-box'
                         }}
-                      >
-                        {option.label[lang]}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                
-                {/* Checkbox buttons (multiple selection) */}
-                {question.type === 'checkbox' && question.options && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    {question.options.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => handleCheckboxToggle(question.id, option.value)}
-                        style={{
-                          padding: '0.5rem 1rem',
-                          fontSize: '0.9rem',
-                          border: isChecked(question.id, option.value) ? '2px solid #2d7a4f' : '1px solid #ddd',
-                          borderRadius: '20px',
-                          background: isChecked(question.id, option.value) ? '#e8f5e9' : 'white',
-                          color: isChecked(question.id, option.value) ? '#2d7a4f' : '#333',
-                          cursor: 'pointer',
-                          fontWeight: isChecked(question.id, option.value) ? 600 : 400,
-                          transition: 'all 0.2s ease'
+                      />
+                    )}
+                    
+                    {/* Number input */}
+                    {question.type === 'number' && (
+                      <input
+                        type="number"
+                        value={(answers[question.id] as string) || ''}
+                        onChange={(e) => handleInputChange(question.id, e.target.value)}
+                        min={question.min}
+                        max={question.max}
+                        placeholder={question.placeholder?.[lang] || ''}
+                        style={{ 
+                          width: '100%', 
+                          padding: '0.75rem', 
+                          fontSize: '1rem', 
+                          border: '1px solid #ddd', 
+                          borderRadius: '8px',
+                          background: 'white',
+                          boxSizing: 'border-box'
                         }}
-                      >
-                        {isChecked(question.id, option.value) && '✓ '}
-                        {option.label[lang]}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                      />
+                    )}
+                    
+                    {/* Textarea */}
+                    {question.type === 'textarea' && (
+                      <textarea
+                        value={(answers[question.id] as string) || ''}
+                        onChange={(e) => handleInputChange(question.id, e.target.value)}
+                        rows={3}
+                        placeholder={question.placeholder?.[lang] || ''}
+                        style={{ 
+                          width: '100%', 
+                          padding: '0.75rem', 
+                          fontSize: '1rem', 
+                          border: '1px solid #ddd', 
+                          borderRadius: '8px',
+                          fontFamily: 'inherit',
+                          resize: 'vertical',
+                          background: 'white',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                    )}
+                    
+                    {/* Radio buttons */}
+                    {question.type === 'radio' && question.options && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        {question.options.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => handleRadioChange(question.id, option.value)}
+                            style={{
+                              padding: '0.5rem 1rem',
+                              fontSize: '0.9rem',
+                              border: answers[question.id] === option.value ? '2px solid #2d7a4f' : '1px solid #ddd',
+                              borderRadius: '20px',
+                              background: answers[question.id] === option.value ? '#e8f5e9' : 'white',
+                              color: answers[question.id] === option.value ? '#2d7a4f' : '#333',
+                              cursor: 'pointer',
+                              fontWeight: answers[question.id] === option.value ? 600 : 400,
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            {option.label[lang]}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Checkbox buttons */}
+                    {question.type === 'checkbox' && question.options && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        {question.options.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => handleCheckboxToggle(question.id, option.value)}
+                            style={{
+                              padding: '0.5rem 1rem',
+                              fontSize: '0.9rem',
+                              border: isChecked(question.id, option.value) ? '2px solid #2d7a4f' : '1px solid #ddd',
+                              borderRadius: '20px',
+                              background: isChecked(question.id, option.value) ? '#e8f5e9' : 'white',
+                              color: isChecked(question.id, option.value) ? '#2d7a4f' : '#333',
+                              cursor: 'pointer',
+                              fontWeight: isChecked(question.id, option.value) ? 600 : 400,
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            {isChecked(question.id, option.value) && '✓ '}
+                            {option.label[lang]}
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
-                {/* Дополнительное поле */}
-                {question.hasAdditional && (answers[question.id] || (Array.isArray(answers[question.id]) && (answers[question.id] as string[]).length > 0)) && (
-                  <div style={{ marginTop: '0.75rem' }}>
-                    <input
-                      type="text"
-                      value={additionalAnswers[question.id] || ''}
-                      onChange={(e) => handleAdditionalChange(question.id, e.target.value)}
-                      placeholder="Уточните подробности..."
-                      style={{ 
-                        width: '100%', 
-                        padding: '0.75rem', 
-                        fontSize: '0.9rem', 
-                        border: '1px solid #ddd', 
-                        borderRadius: '8px',
-                        background: 'white'
-                      }}
-                    />
+                    {/* Дополнительное поле */}
+                    {question.hasAdditional && (answers[question.id] || (Array.isArray(answers[question.id]) && (answers[question.id] as string[]).length > 0)) && (
+                      <div style={{ marginTop: '0.75rem' }}>
+                        <input
+                          type="text"
+                          value={additionalAnswers[question.id] || ''}
+                          onChange={(e) => handleAdditionalChange(question.id, e.target.value)}
+                          placeholder="Уточните подробности..."
+                          style={{ 
+                            width: '100%', 
+                            padding: '0.75rem', 
+                            fontSize: '0.9rem', 
+                            border: '1px solid #ddd', 
+                            borderRadius: '8px',
+                            background: 'white',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-        ))}
+                )
+              })}
+            </div>
+          )
+        })}
 
         {/* Кнопка отправки */}
         <button
