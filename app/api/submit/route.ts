@@ -212,6 +212,24 @@ export async function POST(request: NextRequest) {
       let attempts = 0
       const maxAttempts = 2
       
+      // Создаём inline-кнопку для ответа пользователю
+      const replyKeyboard = {
+        inline_keyboard: [
+          [
+            {
+              text: '💬 Ответить пользователю',
+              callback_data: `reply_${userId}`
+            }
+          ],
+          [
+            {
+              text: '📱 Открыть профиль',
+              url: `tg://user?id=${userId}`
+            }
+          ]
+        ]
+      }
+      
       while (!groupSent && attempts < maxAttempts) {
         try {
           console.log(`📤 Попытка ${attempts + 1}: отправка в группу ${groupChatId}`)
@@ -223,6 +241,7 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify({
               chat_id: groupChatId,
               text: adminMessage,
+              reply_markup: replyKeyboard,
             }),
           })
 

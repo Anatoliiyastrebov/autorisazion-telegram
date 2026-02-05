@@ -99,6 +99,52 @@ const ADMIN_IDS = process.env.TELEGRAM_ADMIN_CHAT_ID
   ? [parseInt(process.env.TELEGRAM_ADMIN_CHAT_ID)]
   : []
 
+// Хранилище ожидающих ответов (adminChatId -> targetUserId)
+const pendingReplies = new Map()
+
+// Обработчик нажатия на inline-кнопку "Ответить пользователю"
+bot.on('callback_query', async (query) => {
+  const callbackData = query.data
+  const chatId = query.message.chat.id
+  const messageId = query.message.message_id
+  
+  // Проверяем, что это кнопка ответа
+  if (callbackData && callbackData.startsWith('reply_')) {
+    const targetUserId = parseInt(callbackData.replace('reply_', ''))
+    
+    console.log(`🔔 Нажата кнопка ответа пользователю ${targetUserId}`)
+    
+    // Сохраняем ID пользователя для ожидания ответа
+    pendingReplies.set(chatId, {
+      targetUserId,
+      messageId,
+      timestamp: Date.now()
+    })
+    
+    // Отвечаем на callback
+    bot.answerCallbackQuery(query.id, {
+      text: 'Напишите сообщение для пользователя',
+      show_alert: false
+    })
+    
+    // Отправляем инструкцию
+    bot.sendMessage(chatId, 
+      `✏️ Напишите сообщение для пользователя (ID: ${targetUserId}).\n\n` +
+      `Просто отправьте текст следующим сообщением, и бот перешлёт его пользователю.\n\n` +
+      `Для отмены напишите /cancel`
+    )
+  }
+})
+
+// Обработчик команды /cancel - отмена ожидания ответа
+bot.onText(/\/cancel/, (msg) => {
+  const chatId = msg.chat.id
+  if (pendingReplies.has(chatId)) {
+    pendingReplies.delete(chatId)
+    bot.sendMessage(chatId, '❌ Отправка сообщения отменена.')
+  }
+})
+
 // Обработчик команды /reply_ID текст - для ответа пользователям без username
 bot.onText(/\/reply_(\d+)\s+(.+)/, async (msg, match) => {
   const chatId = msg.chat.id
@@ -135,10 +181,54 @@ bot.onText(/\/reply_(\d+)\s+(.+)/, async (msg, match) => {
   }
 })
 
-// Обработчик всех сообщений (для отладки)
-bot.on('message', (msg) => {
+// Обработчик всех сообщений
+bot.on('message', async (msg) => {
+  const chatId = msg.chat.id
+  
   // Игнорируем команды, которые уже обработаны
-  if (msg.text && (msg.text.startsWith('/start') || msg.text.startsWith('/help') || msg.text.startsWith('/reply_'))) {
+  if (msg.text && (msg.text.startsWith('/start') || msg.text.startsWith('/help') || msg.text.startsWith('/reply_') || msg.text.startsWith('/cancel'))) {
+    return
+  }
+  
+  // Проверяем, ожидаем ли мы ответ от этого чата
+  if (pendingReplies.has(chatId) && msg.text) {
+    const pending = pendingReplies.get(chatId)
+    const targetUserId = pending.targetUserId
+    
+    // Проверяем, не истекло ли время ожидания (10 минут)
+    if (Date.now() - pending.timestamp > 10 * 60 * 1000) {
+      pendingReplies.delete(chatId)
+      bot.sendMessage(chatId, '⏰ Время ожидания истекло. Нажмите кнопку "Ответить" ещё раз.')
+      return
+    }
+    
+    console.log(`📤 Отправка ответа пользователю ${targetUserId}: ${msg.text.substring(0, 50)}...`)
+    
+    try {
+      await bot.sendMessage(targetUserId, 
+        `📩 Сообщение от администратора:\n\n${msg.text}`
+      )
+      
+      // Удаляем из ожидания
+      pendingReplies.delete(chatId)
+      
+      bot.sendMessage(chatId, 
+        `✅ Сообщение отправлено пользователю!\n\n` +
+        `👤 ID: ${targetUserId}\n` +
+        `📝 Текст: ${msg.text.substring(0, 100)}${msg.text.length > 100 ? '...' : ''}`
+      )
+      console.log(`✅ Ответ успешно отправлен пользователю ${targetUserId}`)
+    } catch (error) {
+      console.error(`❌ Ошибка отправки пользователю ${targetUserId}:`, error.message)
+      pendingReplies.delete(chatId)
+      bot.sendMessage(chatId, 
+        `❌ Не удалось отправить сообщение.\n\n` +
+        `Возможные причины:\n` +
+        `• Пользователь заблокировал бота\n` +
+        `• Пользователь никогда не запускал бота\n\n` +
+        `ID пользователя: ${targetUserId}`
+      )
+    }
     return
   }
   
