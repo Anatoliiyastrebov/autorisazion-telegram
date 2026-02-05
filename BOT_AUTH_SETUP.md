@@ -124,7 +124,7 @@ Web App получает:
 
 **Проверьте:**
 - Создан ли Web App в BotFather с short_name `app`
-- Правильный ли URL: `https://t.me/botname/app?startapp=...`
+- Правильный ли URL: `https://t.me/telega_automat_bot/app?startapp=...`
 
 ### Проблема: Данные не загружаются после возврата
 
