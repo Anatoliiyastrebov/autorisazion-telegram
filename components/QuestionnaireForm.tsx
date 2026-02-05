@@ -444,7 +444,7 @@ function QuestionnaireFormContent({
             {botName ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (typeof window !== 'undefined') {
                       // Получаем текущий URL без параметра auth_token (если он есть)
                       const currentPath = window.location.pathname
@@ -455,24 +455,39 @@ function QuestionnaireFormContent({
                       
                       const currentUrl = currentPath + (currentSearch || '')
                       
-                      // Кодируем URL возврата и тип анкеты для передачи через startapp
-                      // Формат: returnUrl:questionnaireType (base64)
-                      const dataToEncode = `${currentUrl}|${questionnaireType}`
-                      const encodedData = btoa(encodeURIComponent(dataToEncode))
-                      
-                      console.log('💾 Данные для передачи в Web App:', {
+                      console.log('💾 Сохраняем сессию на сервере...', {
                         url: currentUrl,
-                        questionnaireType: questionnaireType,
-                        encoded: encodedData
+                        questionnaireType: questionnaireType
                       })
                       
-                      // Открываем Web App напрямую с параметром startapp
-                      // Это передаст данные в window.Telegram.WebApp.initDataUnsafe.start_param
-                      const webAppUrl = `https://t.me/${botName}/app?startapp=${encodedData}`
-                      console.log('🔗 Открываем Web App для авторизации:', webAppUrl)
-                      
-                      // Открываем Web App в новой вкладке
-                      window.open(webAppUrl, '_blank', 'noopener,noreferrer')
+                      try {
+                        // Сохраняем сессию на сервере и получаем sessionId
+                        const response = await fetch('/api/auth/create-session', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            returnUrl: currentUrl,
+                            questionnaireType: questionnaireType
+                          })
+                        })
+                        
+                        if (!response.ok) {
+                          throw new Error('Failed to create session')
+                        }
+                        
+                        const { sessionId } = await response.json()
+                        console.log('✅ Сессия создана:', sessionId)
+                        
+                        // Открываем Web App с sessionId в параметре startapp
+                        const webAppUrl = `https://t.me/${botName}/app?startapp=${sessionId}`
+                        console.log('🔗 Открываем Web App для авторизации:', webAppUrl)
+                        
+                        // Открываем Web App
+                        window.open(webAppUrl, '_blank', 'noopener,noreferrer')
+                      } catch (error) {
+                        console.error('❌ Ошибка при создании сессии:', error)
+                        alert('Ошибка при подготовке авторизации. Попробуйте ещё раз.')
+                      }
                     }
                   }}
                   style={{ 

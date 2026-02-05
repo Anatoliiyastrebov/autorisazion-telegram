@@ -12,11 +12,21 @@ export interface TelegramUserData {
   initData: string
 }
 
+// Интерфейс для сессии авторизации
+export interface AuthSession {
+  returnUrl: string
+  questionnaireType: string
+  createdAt: number
+}
+
 // Хранилище временных токенов авторизации (в продакшене используйте Redis или БД)
 const authTokens = new Map<string, { userId: number; expiresAt: number }>()
 
 // Хранилище данных пользователей (временное, в продакшене используйте Redis или БД)
 const userDataStore = new Map<string, { userData: TelegramUserData; expiresAt: number }>()
+
+// Хранилище сессий авторизации (URL возврата)
+const authSessions = new Map<string, { session: AuthSession; expiresAt: number }>()
 
 // Генерируем токен авторизации
 export function generateAuthToken(userId: number): string {
@@ -86,5 +96,51 @@ export function getUserData(token: string): TelegramUserData | null {
 // Удаляем данные пользователя
 export function deleteUserData(token: string): void {
   userDataStore.delete(token)
+}
+
+// Сохраняем сессию авторизации (URL возврата)
+export function saveAuthSession(returnUrl: string, questionnaireType: string): string {
+  const sessionId = crypto.randomBytes(16).toString('hex')
+  const expiresAt = Date.now() + 15 * 60 * 1000 // 15 минут
+  
+  authSessions.set(sessionId, {
+    session: {
+      returnUrl,
+      questionnaireType,
+      createdAt: Date.now()
+    },
+    expiresAt
+  })
+  
+  // Очищаем истекшие сессии
+  setTimeout(() => {
+    authSessions.delete(sessionId)
+  }, 15 * 60 * 1000)
+  
+  console.log(`📋 Сессия создана: ${sessionId.substring(0, 8)}... -> ${returnUrl}`)
+  return sessionId
+}
+
+// Получаем сессию авторизации
+export function getAuthSession(sessionId: string): AuthSession | null {
+  const data = authSessions.get(sessionId)
+  if (!data) {
+    console.log(`⚠️ Сессия ${sessionId.substring(0, 8)}... не найдена`)
+    return null
+  }
+  
+  if (Date.now() > data.expiresAt) {
+    authSessions.delete(sessionId)
+    console.log(`⚠️ Сессия ${sessionId.substring(0, 8)}... истекла`)
+    return null
+  }
+  
+  console.log(`✅ Сессия ${sessionId.substring(0, 8)}... найдена: ${data.session.returnUrl}`)
+  return data.session
+}
+
+// Удаляем сессию авторизации
+export function deleteAuthSession(sessionId: string): void {
+  authSessions.delete(sessionId)
 }
 

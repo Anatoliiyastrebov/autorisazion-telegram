@@ -77,23 +77,20 @@ function AuthConfirmContent() {
     }
   }, [searchParams])
 
-  // Получаем данные из start_param (переданы при открытии Web App)
-  const getStartParamData = (): { returnUrl: string; questionnaireType: string } => {
+  // Получаем sessionId из start_param
+  const getSessionId = (): string | null => {
     try {
       if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
         const startParam = window.Telegram.WebApp.initDataUnsafe?.start_param
         if (startParam) {
-          console.log('🔑 Получен start_param:', startParam)
-          const decoded = decodeURIComponent(atob(startParam))
-          const [returnUrl, questionnaireType] = decoded.split('|')
-          console.log('📋 Декодированные данные:', { returnUrl, questionnaireType })
-          return { returnUrl: returnUrl || '/', questionnaireType: questionnaireType || '' }
+          console.log('🔑 Получен sessionId из start_param:', startParam)
+          return startParam
         }
       }
     } catch (error) {
-      console.error('❌ Ошибка при декодировании start_param:', error)
+      console.error('❌ Ошибка при получении start_param:', error)
     }
-    return { returnUrl: '/', questionnaireType: '' }
+    return null
   }
 
   const handleConfirm = async () => {
@@ -102,12 +99,11 @@ function AuthConfirmContent() {
     setIsConfirming(true)
 
     try {
-      // Получаем URL для возврата из start_param (переданы при открытии Web App)
-      const { returnUrl, questionnaireType } = getStartParamData()
+      // Получаем sessionId из start_param
+      const sessionId = getSessionId()
       
       console.log('📡 Отправка данных на сервер...', {
-        returnUrl,
-        questionnaireType,
+        sessionId,
         userId: userData.id
       })
 
@@ -128,8 +124,7 @@ function AuthConfirmContent() {
             hash: userData.hash,
             initData: userData.initData,
           },
-          returnUrl,
-          questionnaireType,
+          sessionId, // Передаём sessionId вместо returnUrl/questionnaireType
         }),
       })
 
