@@ -168,12 +168,25 @@ export async function POST(request: NextRequest) {
       const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`
       
       // Формируем сообщение для администратора/группы
+      const userId = body.telegram.id
+      const userName = body.telegram.first_name + (body.telegram.last_name ? ' ' + body.telegram.last_name : '')
+      
       let adminMessage = `🔔 Новая анкета!\n\n` +
         `📋 Тип анкеты: ${body.questionnaireType}\n` +
-        `👤 Имя: ${body.telegram.first_name}${body.telegram.last_name ? ' ' + body.telegram.last_name : ''}\n` +
+        `👤 Имя: ${userName}\n` +
         `🆔 Username: ${verifiedUsername ? '@' + verifiedUsername : 'не указан'}\n` +
-        `🆔 ID: ${body.telegram.id}\n` +
-        `🔗 Ссылка: ${verifiedUsername ? `https://t.me/${verifiedUsername}` : 'недоступна'}\n\n`
+        `🆔 ID: ${userId}\n`
+      
+      // Добавляем ссылки для связи
+      if (verifiedUsername) {
+        adminMessage += `🔗 Ссылка: https://t.me/${verifiedUsername}\n`
+      } else {
+        // Для пользователей без username - ссылка по ID (работает в Telegram клиентах)
+        adminMessage += `🔗 Написать: tg://user?id=${userId}\n`
+        adminMessage += `💡 Или ответьте через бота командой:\n`
+        adminMessage += `/reply_${userId} Ваше сообщение\n`
+      }
+      adminMessage += `\n`
       
       // Добавляем ответы на вопросы анкеты, если они есть
       if (body.answers && Object.keys(body.answers).length > 0) {

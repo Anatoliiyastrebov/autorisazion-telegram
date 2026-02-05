@@ -94,10 +94,51 @@ bot.onText(/\/help/, (msg) => {
   )
 })
 
+// ID администраторов, которые могут отправлять сообщения через бота
+const ADMIN_IDS = process.env.TELEGRAM_ADMIN_CHAT_ID 
+  ? [parseInt(process.env.TELEGRAM_ADMIN_CHAT_ID)]
+  : []
+
+// Обработчик команды /reply_ID текст - для ответа пользователям без username
+bot.onText(/\/reply_(\d+)\s+(.+)/, async (msg, match) => {
+  const chatId = msg.chat.id
+  const senderId = msg.from.id
+  
+  // Проверяем, что отправитель - администратор (или из группы с анкетами)
+  const isAdmin = ADMIN_IDS.includes(senderId) || msg.chat.type === 'group' || msg.chat.type === 'supergroup'
+  
+  if (!isAdmin) {
+    bot.sendMessage(chatId, '❌ У вас нет прав для отправки сообщений.')
+    return
+  }
+  
+  const targetUserId = parseInt(match[1])
+  const messageText = match[2]
+  
+  console.log(`📤 Попытка отправки сообщения пользователю ${targetUserId}: ${messageText.substring(0, 50)}...`)
+  
+  try {
+    await bot.sendMessage(targetUserId, 
+      `📩 Сообщение от администратора:\n\n${messageText}`
+    )
+    bot.sendMessage(chatId, `✅ Сообщение отправлено пользователю ${targetUserId}`)
+    console.log(`✅ Сообщение успешно отправлено пользователю ${targetUserId}`)
+  } catch (error) {
+    console.error(`❌ Ошибка отправки пользователю ${targetUserId}:`, error.message)
+    bot.sendMessage(chatId, 
+      `❌ Не удалось отправить сообщение.\n` +
+      `Возможные причины:\n` +
+      `- Пользователь заблокировал бота\n` +
+      `- Пользователь не запускал бота\n` +
+      `- Неверный ID пользователя`
+    )
+  }
+})
+
 // Обработчик всех сообщений (для отладки)
 bot.on('message', (msg) => {
   // Игнорируем команды, которые уже обработаны
-  if (msg.text && (msg.text.startsWith('/start') || msg.text.startsWith('/help'))) {
+  if (msg.text && (msg.text.startsWith('/start') || msg.text.startsWith('/help') || msg.text.startsWith('/reply_'))) {
     return
   }
   
